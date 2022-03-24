@@ -11,7 +11,7 @@ We will implement an LLVM frontend for a small but useful programming language. 
 - `awk`, which is a scripting language used to process text, and is a standard utility feature in many operating systems; and
 - the DSL within `jq`, a popular JSON processing tool.
 
-We wanted a language that is *simple* enough that tasks like parsing do not become the majority of work, while still *useful* enough that substantial programs can (and have been) written in it. To this end, we may implement a convenient subset of a language that fulfils our criteria. We are primarily interested in `awk`, and are listing `jq` a fallback.
+We wanted a language that is *simple* enough that tasks like parsing do not become the majority of work, while still *useful* enough that substantial programs can (and have been) written in it. To this end, we may implement a convenient subset of a language that fulfils our criteria. We are primarily interested in `awk`, and are listing `jq` as a fallback.
 
 ## How
 
