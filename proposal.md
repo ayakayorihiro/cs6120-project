@@ -4,4 +4,4 @@ We will implement a LLVM frontend implementation for the programming language `a
 
 // To do so, we will...
 
-Our evaluation will include an extensive test suite to increase confidence in our implementation. Additionally, we hope to compare our implementation with other existing compiler implementations of `awk`-like languages, including [lawk](http://lawk.sourceforge.net/) and [frawk](https://github.com/ezrosent/frawk), in terms of language features able/unable to support, and in terms of runtime as well.
+Our evaluation will include a test suite to increase confidence in our implementation. Additionally, we will compare our implementation with other existing compiler implementations of `awk`-like languages, including [lawk](http://lawk.sourceforge.net/) and [frawk](https://github.com/ezrosent/frawk), both in terms of language features we support and also in terms of runtime.
