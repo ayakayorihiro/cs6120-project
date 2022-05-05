@@ -1,0 +1,4 @@
+(executable
+ (public_name brawn)
+ (name main)
+ (libraries brawn))
