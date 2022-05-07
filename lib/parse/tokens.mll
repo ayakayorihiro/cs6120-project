@@ -52,6 +52,7 @@ rule token = parse
   | '*' { MULT }
   | '%' { MOD }
   | '^' { POW }
+  | '/' { DIV }
   | '!' { BANG }
   | '>' { GT }
   | '<' { LT }
@@ -60,5 +61,7 @@ rule token = parse
   | ':' { COLON }
   | '~' { SQUIGGLE }
   | '$' { DOLLAR }
+  | '=' { ASSIGN }
   | eof    { EOL }
-  | alpha rest as id { VAR id }
+  | alpha rest '(' as funcname { FUNC_NAME funcname }
+  | alpha rest as id { STRING id }

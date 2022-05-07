@@ -1,5 +1,7 @@
 (lang dune 3.1)
 
+(using menhir 2.1)
+
 (name brawn)
 
 (generate_opam_files true)

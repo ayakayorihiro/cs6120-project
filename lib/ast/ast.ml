@@ -1,10 +1,10 @@
+module Ast = struct
 
+type pattern = Begin | End | ExpressionList of expr list
 
-type pattern = Begin | End | Regexp of string
+and ident = Identifier of string
 
-type ident = Idenfifier of string
-
-type input =
+and input =
        SimpleGet of simple_get
      | Pipe of expr * simple_get
      | Redirect of simple_get * expr
@@ -13,8 +13,8 @@ and simple_get =  Getline of lvalue option
 
 and lvalue =
       IdentVal of ident
-    | ArrayVal of ident * expr
-    | Dolla' of expr
+    | ArrayVal of ident * expr list
+    | Dollar of expr
 
 and expr =
       Input of input
@@ -28,11 +28,12 @@ and expr =
     | LessThan of expr * expr
     | LessThanEq of expr * expr
     | Equals of expr * expr
+    | NotEquals of expr * expr
     | GreaterThan of expr * expr
     | GreaterThanEq of expr * expr
     | Match of expr * expr
     | NonMatch of expr * expr
-    | Pattern of pattern
+    | Regexp of string
     | And of expr * expr
     | Or of expr * expr
     | Ternary of expr * expr * expr
@@ -47,6 +48,7 @@ and expr =
     | LValue of lvalue
     | Number of float
     | String of string
+    | Concat of expr * expr
     | PowAssign of lvalue * expr
     | ModAssign of lvalue * expr
     | MulAssign of lvalue * expr
@@ -63,7 +65,7 @@ type statement =
       If of expr * statement * statement option
     | While of expr * statement
     | Do of statement * expr
-    | For of expr option * expr option * expr option * statement
+    | For of statement option * expr option * statement option * statement
     | RangedFor of ident * ident * statement
     | Break
     | Continue
@@ -79,7 +81,8 @@ type func = Function of ident * ident list * statement list
 
 type item =
       FunctionDecl of func
-    | ActionDecl of expr list * statement list
+    | ActionDecl of pattern list * statement list
 
 type program = Program of item list
 
+end

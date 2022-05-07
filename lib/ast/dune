@@ -1,2 +1,3 @@
 (library
- (name brawn_ast))
+ (name brawn_ast)
+ (public_name brawn.ast))
