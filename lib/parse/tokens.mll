@@ -62,6 +62,6 @@ rule token = parse
   | '~' { SQUIGGLE }
   | '$' { DOLLAR }
   | '=' { ASSIGN }
-  | eof    { EOL }
+  | eof    { EOF }
   | alpha rest '(' as funcname { FUNC_NAME funcname }
   | alpha rest as id { STRING id }
