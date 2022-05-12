@@ -1,5 +1,3 @@
-module Ast = struct
-
 type pattern = Begin | End | ExpressionList of expr list
 
 and ident = Identifier of string
@@ -84,5 +82,3 @@ type item =
     | ActionDecl of pattern list * statement list
 
 type program = Program of item list
-
-end
