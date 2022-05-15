@@ -74,6 +74,7 @@ type statement =
     | Print of print
     | Expression of expr
     | Block of statement list
+    | Skip
 
 type func = Function of ident * ident list * statement list
 

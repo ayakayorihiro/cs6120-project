@@ -51,39 +51,26 @@
 %token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON NEWLINE // EOF
 %token PLUS MINUS MULT MOD POW BANG GT LT PIPE QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV
 
-%nonassoc	DOLLAR
-%nonassoc	INCR
-%nonassoc	DECR
-%right	POW
-%nonassoc	BANG
-%nonassoc	PLUS
-%nonassoc	MINUS
-%left	MULT
-%left	DIV
-%left	MOD
-// %left	expr expr
-%nonassoc	LT
-%nonassoc	LE
-%nonassoc	NE
-%nonassoc	EQ
-%nonassoc	GT
-%nonassoc	GE
-%nonassoc	SQUIGGLE
-%nonassoc	NO_MATCH
-%left	In
-// %left	( index ) in array
-	
-%left	AND
-%left	OR
-%right	COLON
-	
-%right	POW_ASSIGN
-%right	MOD_ASSIGN
-%right	MUL_ASSIGN
-%right	DIV_ASSIGN
-%right	ADD_ASSIGN
-%right	SUB_ASSIGN
+/* lowest precedence - always reduce */
 %right	ASSIGN
+%right	SUB_ASSIGN ADD_ASSIGN
+%right	DIV_ASSIGN MUL_ASSIGN MOD_ASSIGN
+%right	POW_ASSIGN
+%right	COLON
+%left	OR
+%left	AND
+// %left	( index ) in array
+%left	In
+%nonassoc	NO_MATCH SQUIGGLE
+%nonassoc	GE GT EQ NE LE LT
+// %left	expr expr
+%left	MOD DIV MULT
+%nonassoc	PLUS MINUS
+%nonassoc	BANG
+%right	POW
+%nonassoc	INCR DECR
+%nonassoc	DOLLAR
+ /* highest precedence - always shift */
 
 %start <program> program
 %%
@@ -163,8 +150,16 @@ terminated_statement : action newline_opt { $1 }
                       terminated_statement { For ($3, $5, $7, $10) }
                  | For LPAREN NAME In NAME RPAREN newline_opt
                       terminated_statement { RangedFor (Identifier($3), Identifier($5), $8) }
-               //   | SEMICOLON newline_opt {  }
-               // BRAWN: Hmm, seems like a strange thing to punt on...
+                 | SEMICOLON newline_opt { Skip }
+               // BRAWN: Hmm, this used to be 
+               //  | SEMICOLON newline_opt { }
+               // but that seemed like a strange thing to punt on.
+               // so I added "Skip" as a constructor to the AST and used that here.
+               // if 
+               // a) leaving the line commented out over here 
+               // is the same as
+               // b) having the line here and Skip-ing explicitly, 
+               // that's fine...       
                  | terminatable_statement NEWLINE newline_opt { $1 }
                  | terminatable_statement SEMICOLON     newline_opt { $1 }
                  ;
@@ -219,19 +214,19 @@ print_statement  : simple_print_statement { $1 }
                  ;
 // BRAWN FIXME: come back to this if we want output redirection
 
-simple_print_statement
-                 : Print  print_expr_list_opt { Print $2 }
-                 | Print  LPAREN multiple_expr_list RPAREN { Print $3 }
-                 | Printf print_expr_list { Printf $2 }
-                 | Printf LPAREN multiple_expr_list RPAREN { Printf $3 }
-                 ;
-
 // BRAWN FIXME: come back to this if we want output redirection
 // output_redirection
 //                  : GT    expr { }
 //                  | APPEND expr
 //                  | PIPE    expr
 //                  ;
+
+simple_print_statement
+                 : Print  print_expr_list_opt { Print $2 }
+                 | Print  LPAREN multiple_expr_list RPAREN { Print $3 }
+                 | Printf print_expr_list { Printf $2 }
+                 | Printf LPAREN multiple_expr_list RPAREN { Printf $3 }
+                 ;
 
 expr_list_opt    : /* empty */
                     { [] }
@@ -267,7 +262,7 @@ unary_expr       : PLUS expr { Positive $2 }
                  | unary_expr MOD expr { Mod ($1, $3) }
                  | unary_expr PLUS expr { Plus ($1, $3) }
                  | unary_expr MINUS expr { Subtract ($1, $3) }
-               //   | unary_expr non_unary_expr { Concat($1, $2) }
+                 | unary_expr non_unary_expr { Concat($1, $2) }
                  | unary_expr LT expr { LessThan ($1, $3) }
                  | unary_expr LE expr { LessThanEq ($1, $3) }
                  | unary_expr NE expr { NotEquals ($1, $3) }
@@ -301,7 +296,10 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                  | non_unary_expr SQUIGGLE expr { Match ($1, $3) }
                  | non_unary_expr NO_MATCH expr { NonMatch ($1, $3) }
                  | non_unary_expr In NAME { Mem ($1, Identifier($3)) }
-               //   | LPAREN multiple_expr_list RPAREN In NAME
+                //  | LPAREN multiple_expr_list RPAREN In NAME
+                // BRAWN: this is for multi-dimensional array membership.
+                // punting for now; let's talk about whether we want to 
+                // support this all around.
                  | non_unary_expr AND newline_opt expr { And ($1, $4) }
                  | non_unary_expr OR  newline_opt expr { Or ($1, $4) }
                  | non_unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
@@ -324,7 +322,7 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                       /* no white space allowed before LPAREN */
                  | BUILTIN_FUNC_NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
                  | BUILTIN_FUNC_NAME { FuncCall (Identifier $1, []) }
-                 // maybe these should be separate from regular func calls?
+                 // BRAWN: maybe these should be separate from regular func calls?
                  | non_unary_input_function { Input $1 }
                  ;
 
