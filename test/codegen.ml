@@ -1,4 +1,7 @@
-open Llvm
+open Brawn_ast.Ast;;
+
+let _ = to_json_file () "yo.json"
+(* open Llvm
 open Brawn_ast.Ast
 
 let brawn_type ctx =
@@ -34,4 +37,4 @@ let emit_llvm _ =
   print_string (string_of_lltype (integer_type ctx 32))
   (* process_item_list program ctx *)
 
-let _ = emit_llvm ()
+let _ = emit_llvm () *)
