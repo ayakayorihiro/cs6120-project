@@ -1,6 +1,5 @@
 %{
-     open Brawn_ast;;
-     open Ast;;
+     open Brawn_ast.Ast;;
 %}
 
 %token <string> NAME 

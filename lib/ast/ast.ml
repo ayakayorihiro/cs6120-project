@@ -7,7 +7,7 @@ and input =
      | Pipe of expr * simple_get
      | Redirect of simple_get * expr
 
-and simple_get =  Getline of lvalue option
+and simple_get = Getline of lvalue option
 
 and lvalue =
       IdentVal of ident

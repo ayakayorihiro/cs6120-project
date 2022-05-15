@@ -1,0 +1,4 @@
+(library
+ (name brawn_codegen)
+ (public_name brawn.codegen)
+ (libraries llvm brawn_ast brawn_parser))
