@@ -8,7 +8,7 @@
 %token <string> STRING
 %token <string> ERE
 %token <string> FUNC_NAME   /* Name followed by LPAREN without white space. */
-
+%token EOF
 
 /* Keywords  */
 %token       Begin   End
@@ -76,8 +76,8 @@
 %%
 
 
-program          : item_list { Program $1 }
-                 | actionless_item_list { Program $1 }
+program          : item_list EOF { Program $1 }
+                 | actionless_item_list EOF { Program $1 }
                  ;
 
 
@@ -275,7 +275,8 @@ unary_expr       : PLUS expr { Positive $2 }
                  | unary_expr AND newline_opt expr { And ($1, $4) }
                  | unary_expr OR  newline_opt expr { Or ($1, $4) }
                  | unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
-                 | unary_input_function { Input $1 }
+                //  | non_unary_input_function { Input $1 }
+                // BRAWN: this particular case is handled along with non-unary
                  ;
 
 non_unary_expr   : LPAREN expr RPAREN { $2 }
@@ -348,9 +349,12 @@ non_unary_input_function
                  | simple_get LT expr { Redirect ($1, $3) }
                  | unary_expr PIPE simple_get { Pipe ($1, $3) }
 
-unary_input_function
-                 : unary_expr PIPE simple_get { Pipe ($1, $3) }
-                 ;
+// BRAWN: there is no need for this, because the third constructor above
+// can handle unary and non-unary cases. 
+// unary_input_function
+                //  : unary_expr PIPE simple_get { Pipe ($1, $3) }
+                //  ;
+
 
 
 simple_get       : GETLINE { Getline None }

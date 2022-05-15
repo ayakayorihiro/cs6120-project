@@ -62,7 +62,7 @@ rule token = parse
   | '~' { SQUIGGLE }
   | '$' { DOLLAR }
   | '=' { ASSIGN }
-  (* | eof    { EOF } *)
+  | eof    { EOF }
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | alpha rest '(' as funcname { FUNC_NAME funcname }
   | alpha rest as id { STRING id }
