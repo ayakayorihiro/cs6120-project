@@ -18,6 +18,7 @@ let rest = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']*
 let whitespace = [' ' '\t']
 let newline = '\n'
 let string_contents = [^'"']*
+let regex_contents = [^'/']*
 let newline = '\n'
 
 let ident_start = alpha
@@ -91,5 +92,6 @@ rule token = parse
   | digit+ as n         { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | "\"" (string_contents as s) "\"" { debug_print @@ "STRING " ^ s; STRING s }
+  | "/" (regex_contents as r) "/" { debug_print @@ "REGEX " ^ r ; ERE r }
   | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname;FUNC_NAME funcname }
   | ident_start ident_cont* as s { debug_print @@ "NAME " ^ s ; NAME s}

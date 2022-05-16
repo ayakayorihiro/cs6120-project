@@ -355,7 +355,7 @@ print_expr_list  : expr { [$1] }
 
 lvalue           : NAME { IdentVal (Identifier ($1)) }
                  | NAME LBRACK expr_list RBRACK { ArrayVal (Identifier($1), $3) }
-                 | DOLLAR expr { Dollar ($2) }
+                 | DOLLAR expr { debug_print "PLvalue: dollar \n"; Dollar ($2) }
                  ;
 
 non_unary_input_function
