@@ -1,6 +1,7 @@
 (ocamllex tokens)
 
 (menhir
+ (flags --unused-precedence-levels)
  (modules grammar))
 
 (library

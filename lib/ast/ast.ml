@@ -1,5 +1,3 @@
-module Ast = struct
-
 type pattern = Begin | End | ExpressionList of expr list
 
 and ident = Identifier of string
@@ -9,7 +7,7 @@ and input =
      | Pipe of expr * simple_get
      | Redirect of simple_get * expr
 
-and simple_get =  Getline of lvalue option
+and simple_get = Getline of lvalue option
 
 and lvalue =
       IdentVal of ident
@@ -76,6 +74,7 @@ type statement =
     | Print of print
     | Expression of expr
     | Block of statement list
+    | Skip
 
 type func = Function of ident * ident list * statement list
 
@@ -84,5 +83,3 @@ type item =
     | ActionDecl of pattern list * statement list
 
 type program = Program of item list
-
-end

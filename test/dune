@@ -1,0 +1,3 @@
+(test
+ (name codegen)
+ (libraries brawn_ast brawn_parser))
