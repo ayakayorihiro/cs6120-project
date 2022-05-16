@@ -1,4 +1,4 @@
-open Ast
+(* open Ast
 
 
 let id_to_str (Identifier s) = s
@@ -104,4 +104,4 @@ let serialize_item item =
   | FunctionDecl f -> serialize_func_defn f 
   | ActionDecl (patterns, statements) -> serialize_action_decl patterns statements
 
-let serialize_prog (Program items) = List.concat_map serialize_item items
+let serialize_prog (Program items) = List.concat_map serialize_item items *)
