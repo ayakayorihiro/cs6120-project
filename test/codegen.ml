@@ -24,4 +24,6 @@ let parse_program (input : string) =
   Grammar.program Tokens.token buf
 ;;
 
-let _ = parse_program "BEGIN { a=1 } ; EOF" ;;
+let _ = parse_program "BEGIN { for (i=1;i<=6;i++) print \"square of\", i, \"is\",i*i; }; EOF"
+(* "BEGIN { a=1 ; print a }; EOF" *)
+;;

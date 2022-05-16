@@ -37,16 +37,19 @@ rule token = parse
   | "else" { debug_print "Else"; Else }
   | "exit" { debug_print "Exit";Exit }
   | "for" { debug_print "For"; For }
+  | "for(" { debug_print "For("; ForLPAREN}
   | "function" { debug_print "Function"; Function }
   | "if" { debug_print "If"; If }
+  | "if(" { debug_print "If("; IfLPAREN }
   | "in" { debug_print "In"; In }
   | "next" { debug_print "Next" ; Next }
   | "print" { debug_print "Print" ; Print }
   | "printf" { debug_print "Printf"; Printf }
   | "return" { debug_print "Return"; Return }
   | "while" { debug_print "While"; While }
+  | "while(" { debug_print "While("; WhileLPAREN }
   | "+=" { debug_print "ADD_ASSIGN" ; ADD_ASSIGN }
-  | "-=" { debug_print "SUB_ASSIGN" ;SUB_ASSIGN }
+  | "-=" { debug_print "SUB_ASSIGN" ; SUB_ASSIGN }
   | "*=" { debug_print "MUL_ASSIGN" ; MUL_ASSIGN }
   | "/=" { debug_print "DIV_ASSIGN" ; DIV_ASSIGN }
   | "%=" { debug_print "MOD_ASSIGN"; MOD_ASSIGN }

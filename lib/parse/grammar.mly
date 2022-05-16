@@ -51,6 +51,7 @@
 
 /* One-character tokens. */
 %token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON // EOF
+%token ForLPAREN WhileLPAREN IfLPAREN
 %token PLUS MINUS MULT MOD POW BANG GT LT PIPE QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV
 
 /* lowest precedence - always reduce */
@@ -80,7 +81,7 @@
 
 program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program $1 }
                  | actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
-                 | EOF { Program []}
+                 | EOF { Program [] }
                  ;
 
 
@@ -145,9 +146,24 @@ terminated_statement : action  { $1 }
                  | While LPAREN expr RPAREN  terminated_statement { While ($3, $5) }
                  | For LPAREN simple_statement_opt SEMICOLON
                       expr_opt SEMICOLON simple_statement_opt RPAREN 
-                      terminated_statement { For ($3, $5, $7, $9) }
+                      terminated_statement 
+                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
+                      For ($3, $5, $7, $9) }
                  | For LPAREN NAME In NAME RPAREN
                       terminated_statement { RangedFor (Identifier($3), Identifier($5), $7) }
+                      /* NOTE: the below is a hack to prevent if/for/while without spaces 
+                      before the parens to be accidentally interpreted as function names */
+                 | IfLPAREN expr RPAREN  terminated_statement { If ($2, $4, None) }
+                 | IfLPAREN expr RPAREN  terminated_statement
+                       Else  terminated_statement  { If ($2, $4, Some($6))}
+                 | WhileLPAREN expr RPAREN  terminated_statement { While ($2, $4) }
+                 | ForLPAREN simple_statement_opt SEMICOLON
+                      expr_opt SEMICOLON simple_statement_opt RPAREN 
+                      terminated_statement 
+                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
+                      For ($2, $4, $6, $8) }
+                 | ForLPAREN NAME In NAME RPAREN
+                      terminated_statement { RangedFor (Identifier($2), Identifier($4), $6) }
                  | SEMICOLON  { Skip }
                // BRAWN: Hmm, this used to be 
                //  | SEMICOLON  { }
