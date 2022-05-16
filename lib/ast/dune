@@ -1,6 +1,3 @@
 (library
  (name brawn_ast)
- (public_name brawn.ast)
- (libraries ppx_deriving_yojson.runtime yojson)
- (preprocess
-  (pps ppx_deriving_yojson)))
+ (public_name brawn.ast))
