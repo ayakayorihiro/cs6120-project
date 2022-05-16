@@ -1,22 +1,18 @@
-open Yojson.Safe
+type pattern = Begin | End | ExpressionList of expr list
 
-type pattern = Begin | End | ExpressionList of expr list [@@deriving yojson]
-
-and ident = Identifier of string [@@deriving yojson]
+and ident = Identifier of string
 
 and input =
        SimpleGet of simple_get
      | Pipe of expr * simple_get
      | Redirect of simple_get * expr
-     [@@deriving yojson]
 
-and simple_get = Getline of lvalue option [@@deriving yojson]
+and simple_get = Getline of lvalue option
 
 and lvalue =
       IdentVal of ident
     | ArrayVal of ident * expr list
     | Dollar of expr
-    [@@deriving yojson]
 
 and expr =
       Input of input
@@ -58,12 +54,10 @@ and expr =
     | AddAssign of lvalue * expr
     | SubAssign of lvalue * expr
     | Assignment of lvalue * expr
-    [@@deriving yojson]
 
 type print =
       Print of expr list
     | Printf of expr list
-    [@@deriving yojson]
 
 type statement =
       If of expr * statement * statement option
@@ -81,21 +75,11 @@ type statement =
     | Expression of expr
     | Block of statement list
     | Skip
-    [@@deriving yojson]
 
-type func = Function of ident * ident list * statement list [@@deriving yojson]
+type func = Function of ident * ident list * statement list
 
 type item =
       FunctionDecl of func
     | ActionDecl of pattern list * statement list
-    [@@deriving yojson]
 
-type program = Program of item list [@@deriving yojson]
-
-let to_json_file _ filename : unit =
-  let s = Continue in
-  let i = FunctionDecl(Function(Identifier("hi"), [Identifier("bye")], [s])) in
-  let p = Program [i] in
-  to_file filename (program_to_yojson p)
-
-
+type program = Program of item list
