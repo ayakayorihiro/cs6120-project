@@ -333,7 +333,7 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                  | lvalue ADD_ASSIGN expr { AddAssign ($1, $3) }
                  | lvalue SUB_ASSIGN expr { SubAssign ($1, $3) }
                  | lvalue ASSIGN expr { Assignment ($1, $3) }
-                 | FUNC_NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
+                 | NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
                       /* no white space allowed before LPAREN */
                  | BUILTIN_FUNC_NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
                  | BUILTIN_FUNC_NAME { FuncCall (Identifier $1, []) }
