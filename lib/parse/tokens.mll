@@ -1,6 +1,6 @@
 { open Grammar;;
   open Lexing;;
-  (* NOTE: modify the below based on whether you'd like to see what tokens are generated *)
+  (* NOTE: modify the below based on whether you'd like to see what tokens are generatedb *)
   let debug_print content = 
   print_endline content
     (* () *)
@@ -16,12 +16,14 @@ let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']
 let rest = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']*
 let whitespace = [' ' '\t']
+let newline = '\n'
 let string_contents = [^'"']*
 let newline = '\n'
 rule token = parse
   | eof    { debug_print "EOF"; EOF }
   | "EOF" { debug_print "alt-EOF" ; EOF}
   | [' ' '\t'] { debug_print "w" ; token lexbuf } (* skip whitespace *)
+  | newline              { incr_lineno lexbuf; token lexbuf }
   | "BEGIN" { debug_print "BEGIN" ; Begin }
   | "END" { debug_print "END" ; End }
   | "break" { debug_print "Break"; Break }
