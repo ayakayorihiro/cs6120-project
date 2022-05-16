@@ -24,4 +24,4 @@ let parse_program (input : string) =
   Grammar.program Tokens.token buf
 ;;
 
-let _ = parse_program "BEGIN {} ; EOF" ;;
+let _ = parse_program "BEGIN { a=1 } ; EOF" ;;

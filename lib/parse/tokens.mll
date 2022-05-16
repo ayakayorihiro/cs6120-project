@@ -19,6 +19,10 @@ let whitespace = [' ' '\t']
 let newline = '\n'
 let string_contents = [^'"']*
 let newline = '\n'
+
+let ident_start = alpha
+let ident_cont = alpha | digit | '_'
+
 rule token = parse
   | eof    { debug_print "EOF"; EOF }
   | "EOF" { debug_print "alt-EOF" ; EOF}
@@ -80,8 +84,9 @@ rule token = parse
   | '~' { debug_print "SQUIGGLE";SQUIGGLE }
   | '$' { debug_print "DOLLAR";DOLLAR }
   | '=' { debug_print "ASSIGN";ASSIGN }
+  | digit* '.' digit+ as n         { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
   | digit+ as n         { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | "\"" (string_contents as s) "\"" { debug_print @@ "STRING " ^ s; STRING s }
   | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname;FUNC_NAME funcname }
-  (* | alpha rest as id { debug_print (id ^ "\n") ; STRING id } *)
+  | ident_start ident_cont* as s { debug_print @@ "NAME " ^ s ; NAME s}
