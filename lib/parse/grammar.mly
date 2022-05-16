@@ -1,5 +1,8 @@
 %{
      open Brawn_ast.Ast;;
+     let debug_print content = 
+     let _ = Printf.printf content in ()
+     ;;
 %}
 
 %token <string> NAME 
@@ -75,16 +78,16 @@
 %%
 
 
-program          : item_list EOF { Printf.printf "PProgram: item_list EOF\n%!" ; Program $1 }
-                 | actionless_item_list EOF { Printf.printf "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
+program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program $1 }
+                 | actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
                  | EOF { Program []}
                  ;
 
 
-item_list        : actionless_item_list item SEMICOLON { $1 @ [$2] }
-                 | item_list            item SEMICOLON { $1 @ [$2] }
-                 | item_list          action SEMICOLON { $1 @ [ActionDecl([], [$2])] }
-                 | { [] } (* AYAKA: does this work for empty? *)
+item_list        : actionless_item_list item SEMICOLON { debug_print "PItem_list: actionless_item_list item" ; $1 @ [$2] }
+                 | item_list            item SEMICOLON { debug_print "PItem_list: item_list item" ; $1 @ [$2] }
+                 | item_list          action SEMICOLON { debug_print "PItem_list: item_list action" ; $1 @ [ActionDecl([], [$2])] }
+                 | { debug_print "PItem_list: Empty item\n" ; [] }
                  ;
 
 
@@ -94,7 +97,7 @@ actionless_item_list
                  ;
 
 
-item             : pattern action { Printf.printf "PItem: pattern action\n%!"; ActionDecl ([$1], [$2]) }
+item             : pattern action { debug_print "PItem: pattern action\n"; ActionDecl ([$1], [$2]) }
                  | Function NAME      LPAREN param_list_opt RPAREN action 
                     { FunctionDecl (Function (Identifier($2), $4, [$6])) }
                  | Function FUNC_NAME LPAREN param_list_opt RPAREN action 
@@ -112,13 +115,13 @@ param_list       : NAME { [Identifier($1)] }
                  ;
 
 
-pattern          : Begin { Printf.printf "beginnnnnnn\n%!"; Begin }
+pattern          : Begin { debug_print "beginnnnnnn\n%!"; Begin }
                  | End { End }
                  | expr_list { ExpressionList ($1) }
                  ;
 
 
-action           : LCURL RCURL { Printf.printf "PAction: LCURL RCURL\n%!" ; Block [] }
+action           : LCURL RCURL { debug_print "PAction: LCURL RCURL\n%!" ; Block [] }
                  | LCURL terminated_statement_list   RCURL { Printf.printf "PAction: LCURL terminated_statement_list   RCURL\n%!" ; Block $2 }
                //   | LCURL unterminated_statement_list RCURL { Printf.printf "PAction: LCURL unterminated_statement_list bRCURL\n%!" ; $2 }
                  ;
