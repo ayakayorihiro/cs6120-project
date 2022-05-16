@@ -79,7 +79,7 @@ type statement =
 type func = Function of ident * ident list * statement list
 
 type item =
-      FunctionDecl of func
+    | FunctionDecl of func
     | ActionDecl of pattern list * statement list
 
 type program = Program of item list
