@@ -84,6 +84,9 @@ program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; P
                  ;
 
 
+/* NOTE: actual AWK does not necessitate a semicolon at the end of each item, but because the parser was being
+   finnicky with newlines and the such, I defered to forcing each item needing to be ended with a semicolon.
+*/
 item_list        : actionless_item_list item SEMICOLON { debug_print "PItem_list: actionless_item_list item" ; $1 @ [$2] }
                  | item_list            item SEMICOLON { debug_print "PItem_list: item_list item" ; $1 @ [$2] }
                  | item_list          action SEMICOLON { debug_print "PItem_list: item_list action" ; $1 @ [ActionDecl([], [$2])] }
