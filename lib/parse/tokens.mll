@@ -20,6 +20,7 @@ let newline = '\n'
 let string_contents = [^'"']*
 let regex_contents = [^'/']*
 let newline = '\n'
+let built_in_names = "atan2"|"cos"|"sin"|"exp"|"log"|"sqrt"|"int"|"rand"|"srand"|"gsub"|"index"|"length"|"match"|"split"|"sprintf"|"sub"|"substr"|"tolower"|"toupper"|"close"|"system"
 
 let ident_start = alpha
 let ident_cont = alpha | digit | '_'
@@ -93,5 +94,6 @@ rule token = parse
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | "\"" (string_contents as s) "\"" { debug_print @@ "STRING " ^ s; STRING s }
   | "/" (regex_contents as r) "/" { debug_print @@ "REGEX " ^ r ; ERE r }
-  | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname;FUNC_NAME funcname }
+  | built_in_names as funcname { debug_print @@ "BUILTIN_FUNC_NAME " ^ funcname ; BUILTIN_FUNC_NAME funcname }
+  (* | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname; FUNC_NAME funcname } *)
   | ident_start ident_cont* as s { debug_print @@ "NAME " ^ s ; NAME s}
