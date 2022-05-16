@@ -75,8 +75,8 @@
 %%
 
 
-program          : item_list EOF { Program $1 }
-                 | actionless_item_list EOF { Program $1 }
+program          : item_list EOF { Printf.printf "PProgram: item_list EOF\n%!" ; Program $1 }
+                 | actionless_item_list EOF { Printf.printf "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
                  ;
 
 
@@ -93,7 +93,7 @@ actionless_item_list
                  ;
 
 
-item             : pattern action { ActionDecl ([$1], [$2]) }
+item             : pattern action { Printf.printf "PItem: pattern action\n%!"; ActionDecl ([$1], [$2]) }
                  | Function NAME      LPAREN param_list_opt RPAREN
                        newline_opt action { FunctionDecl (Function (Identifier($2), $4, [$7])) }
                  | Function FUNC_NAME LPAREN param_list_opt RPAREN
@@ -111,15 +111,15 @@ param_list       : NAME { [Identifier($1)] }
                  ;
 
 
-pattern          : Begin { Begin }
+pattern          : Begin { Printf.printf "beginnnnnnn\n%!"; Begin }
                  | End { End }
                  | expr_list { ExpressionList ($1) }
                  ;
 
 
-action           : LCURL newline_opt                             RCURL { Block [] }
-                 | LCURL newline_opt terminated_statement_list   RCURL { Block $3 }
-               //   | LCURL newline_opt unterminated_statement_list RCURL { $3 }
+action           : LCURL newline_opt                             RCURL { Printf.printf "PAction: LCURL newline_opt RCURL\n%!" ; Block [] }
+                 | LCURL newline_opt terminated_statement_list   RCURL { Printf.printf "PAction: LCURL newline_opt terminated_statement_list   RCURL\n%!" ; Block $3 }
+               //   | LCURL newline_opt unterminated_statement_list RCURL { Printf.printf "PAction: LCURL newline_opt unterminated_statement_list bRCURL\n%!" ; $3 }
                  ;
 // BRAWN: 
 // We are not going to allow unterminated statements. 
