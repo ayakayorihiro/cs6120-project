@@ -18,7 +18,12 @@ let rest = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']*
 let whitespace = [' ' '\t']
 let newline = '\n'
 let string_contents = [^'"']*
+let regex_contents = [^'/']*
 let newline = '\n'
+
+let ident_start = alpha
+let ident_cont = alpha | digit | '_'
+
 rule token = parse
   | eof    { debug_print "EOF"; EOF }
   | "EOF" { debug_print "alt-EOF" ; EOF}
@@ -33,16 +38,19 @@ rule token = parse
   | "else" { debug_print "Else"; Else }
   | "exit" { debug_print "Exit";Exit }
   | "for" { debug_print "For"; For }
+  | "for(" { debug_print "For("; ForLPAREN}
   | "function" { debug_print "Function"; Function }
   | "if" { debug_print "If"; If }
+  | "if(" { debug_print "If("; IfLPAREN }
   | "in" { debug_print "In"; In }
   | "next" { debug_print "Next" ; Next }
   | "print" { debug_print "Print" ; Print }
   | "printf" { debug_print "Printf"; Printf }
   | "return" { debug_print "Return"; Return }
   | "while" { debug_print "While"; While }
+  | "while(" { debug_print "While("; WhileLPAREN }
   | "+=" { debug_print "ADD_ASSIGN" ; ADD_ASSIGN }
-  | "-=" { debug_print "SUB_ASSIGN" ;SUB_ASSIGN }
+  | "-=" { debug_print "SUB_ASSIGN" ; SUB_ASSIGN }
   | "*=" { debug_print "MUL_ASSIGN" ; MUL_ASSIGN }
   | "/=" { debug_print "DIV_ASSIGN" ; DIV_ASSIGN }
   | "%=" { debug_print "MOD_ASSIGN"; MOD_ASSIGN }
@@ -80,8 +88,10 @@ rule token = parse
   | '~' { debug_print "SQUIGGLE";SQUIGGLE }
   | '$' { debug_print "DOLLAR";DOLLAR }
   | '=' { debug_print "ASSIGN";ASSIGN }
+  | digit* '.' digit+ as n         { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
   | digit+ as n         { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | "\"" (string_contents as s) "\"" { debug_print @@ "STRING " ^ s; STRING s }
+  | "/" (regex_contents as r) "/" { debug_print @@ "REGEX " ^ r ; ERE r }
   | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname;FUNC_NAME funcname }
-  (* | alpha rest as id { debug_print (id ^ "\n") ; STRING id } *)
+  | ident_start ident_cont* as s { debug_print @@ "NAME " ^ s ; NAME s}
