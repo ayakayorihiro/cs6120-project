@@ -1,5 +1,8 @@
 %{
      open Brawn_ast.Ast;;
+     let debug_print content = 
+     let _ = Printf.printf content in ()
+     ;;
 %}
 
 %token <string> NAME 
@@ -47,7 +50,8 @@
 // Add APPEND back if we dedide we want output redirection
 
 /* One-character tokens. */
-%token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON NEWLINE // EOF
+%token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON // EOF
+%token ForLPAREN WhileLPAREN IfLPAREN
 %token PLUS MINUS MULT MOD POW BANG GT LT PIPE QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV
 
 /* lowest precedence - always reduce */
@@ -75,29 +79,33 @@
 %%
 
 
-program          : item_list EOF { Program $1 }
-                 | actionless_item_list EOF { Program $1 }
+program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program $1 }
+                 | actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
+                 | EOF { Program [] }
                  ;
 
 
-item_list        : newline_opt { [] }
-                 | actionless_item_list item terminator { $1 @ [$2] }
-                 | item_list            item terminator { $1 @ [$2] }
-                 | item_list          action terminator { $1 @ [ActionDecl([], [$2])] }
+/* NOTE: actual AWK does not necessitate a semicolon at the end of each item, but because the parser was being
+   finnicky with newlines and the such, I defered to forcing each item needing to be ended with a semicolon.
+*/
+item_list        : actionless_item_list item SEMICOLON { debug_print "PItem_list: actionless_item_list item" ; $1 @ [$2] }
+                 | item_list            item SEMICOLON { debug_print "PItem_list: item_list item" ; $1 @ [$2] }
+                 | item_list          action SEMICOLON { debug_print "PItem_list: item_list action" ; $1 @ [ActionDecl([], [$2])] }
+                 | { debug_print "PItem_list: Empty item\n" ; [] }
                  ;
 
 
 actionless_item_list
-                 : item_list            pattern terminator { $1 @ [ActionDecl([$2], [])] }
-                 | actionless_item_list pattern terminator { $1 @ [ActionDecl([$2], [])] }
+                 : item_list            pattern SEMICOLON { $1 @ [ActionDecl([$2], [])] }
+                 | actionless_item_list pattern SEMICOLON { $1 @ [ActionDecl([$2], [])] }
                  ;
 
 
-item             : pattern action { ActionDecl ([$1], [$2]) }
-                 | Function NAME      LPAREN param_list_opt RPAREN
-                       newline_opt action { FunctionDecl (Function (Identifier($2), $4, [$7])) }
-                 | Function FUNC_NAME LPAREN param_list_opt RPAREN
-                       newline_opt action { FunctionDecl (Function (Identifier($2), $4, [$7])) }
+item             : pattern action { debug_print "PItem: pattern action\n"; ActionDecl ([$1], [$2]) }
+                 | Function NAME      LPAREN param_list_opt RPAREN action 
+                    { FunctionDecl (Function (Identifier($2), $4, [$6])) }
+                 | Function FUNC_NAME LPAREN param_list_opt RPAREN action 
+                    { FunctionDecl (Function (Identifier($2), $4, [$6])) }
                  ;
 
 
@@ -111,27 +119,19 @@ param_list       : NAME { [Identifier($1)] }
                  ;
 
 
-pattern          : Begin { Begin }
+pattern          : Begin { debug_print "beginnnnnnn\n%!"; Begin }
                  | End { End }
                  | expr_list { ExpressionList ($1) }
                  ;
 
 
-action           : LCURL newline_opt                             RCURL { Block [] }
-                 | LCURL newline_opt terminated_statement_list   RCURL { Block $3 }
-               //   | LCURL newline_opt unterminated_statement_list RCURL { $3 }
+action           : LCURL RCURL { debug_print "PAction: LCURL RCURL\n%!" ; Block [] }
+                 | LCURL terminated_statement_list   RCURL { Printf.printf "PAction: LCURL terminated_statement_list   RCURL\n%!" ; Block $2 }
+               //   | LCURL unterminated_statement_list RCURL { Printf.printf "PAction: LCURL unterminated_statement_list bRCURL\n%!" ; $2 }
                  ;
 // BRAWN: 
 // We are not going to allow unterminated statements. 
 // Instead, we will require that parens be used to create terminated statements
-
-
-
-terminator       : terminator SEMICOLON { }
-                 | terminator NEWLINE { }
-                 |            SEMICOLON { }
-                 |            NEWLINE { }
-                 ;
 
 
 terminated_statement_list
@@ -139,19 +139,34 @@ terminated_statement_list
                  | terminated_statement_list terminated_statement { $1 @ [$2] }
                  ;
 
-terminated_statement : action newline_opt { $1 }
-                 | If LPAREN expr RPAREN newline_opt terminated_statement { If ($3, $6, None) }
-                 | If LPAREN expr RPAREN newline_opt terminated_statement
-                       Else newline_opt terminated_statement  { If ($3, $6, Some($9))}
-                 | While LPAREN expr RPAREN newline_opt terminated_statement { While ($3, $6) }
+terminated_statement : action  { $1 }
+                 | If LPAREN expr RPAREN  terminated_statement { If ($3, $5, None) }
+                 | If LPAREN expr RPAREN  terminated_statement
+                       Else  terminated_statement  { If ($3, $5, Some($7))}
+                 | While LPAREN expr RPAREN  terminated_statement { While ($3, $5) }
                  | For LPAREN simple_statement_opt SEMICOLON
-                      expr_opt SEMICOLON simple_statement_opt RPAREN newline_opt
-                      terminated_statement { For ($3, $5, $7, $10) }
-                 | For LPAREN NAME In NAME RPAREN newline_opt
-                      terminated_statement { RangedFor (Identifier($3), Identifier($5), $8) }
-                 | SEMICOLON newline_opt { Skip }
+                      expr_opt SEMICOLON simple_statement_opt RPAREN 
+                      terminated_statement 
+                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
+                      For ($3, $5, $7, $9) }
+                 | For LPAREN NAME In NAME RPAREN
+                      terminated_statement { RangedFor (Identifier($3), Identifier($5), $7) }
+                      /* NOTE: the below is a hack to prevent if/for/while without spaces 
+                      before the parens to be accidentally interpreted as function names */
+                 | IfLPAREN expr RPAREN  terminated_statement { If ($2, $4, None) }
+                 | IfLPAREN expr RPAREN  terminated_statement
+                       Else  terminated_statement  { If ($2, $4, Some($6))}
+                 | WhileLPAREN expr RPAREN  terminated_statement { While ($2, $4) }
+                 | ForLPAREN simple_statement_opt SEMICOLON
+                      expr_opt SEMICOLON simple_statement_opt RPAREN 
+                      terminated_statement 
+                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
+                      For ($2, $4, $6, $8) }
+                 | ForLPAREN NAME In NAME RPAREN
+                      terminated_statement { RangedFor (Identifier($2), Identifier($4), $6) }
+                 | SEMICOLON  { Skip }
                // BRAWN: Hmm, this used to be 
-               //  | SEMICOLON newline_opt { }
+               //  | SEMICOLON  { }
                // but that seemed like a strange thing to punt on.
                // so I added "Skip" as a constructor to the AST and used that here.
                // if 
@@ -159,8 +174,8 @@ terminated_statement : action newline_opt { $1 }
                // is the same as
                // b) having the line here and Skip-ing explicitly, 
                // that's fine...       
-                 | terminatable_statement NEWLINE newline_opt { $1 }
-                 | terminatable_statement SEMICOLON     newline_opt { $1 }
+                 | terminatable_statement { $1 }
+                 | terminatable_statement SEMICOLON      { $1 }
                  ;
 
 
@@ -174,14 +189,14 @@ terminated_statement : action newline_opt { $1 }
 //                  ;
 
 // unterminated_statement : terminatable_statement
-//                  | If LPAREN expr RPAREN newline_opt unterminated_statement
-//                  | If LPAREN expr RPAREN newline_opt terminated_statement
-//                       Else newline_opt unterminated_statement
-//                  | While LPAREN expr RPAREN newline_opt unterminated_statement
+//                  | If LPAREN expr RPAREN  unterminated_statement
+//                  | If LPAREN expr RPAREN  terminated_statement
+//                       Else  unterminated_statement
+//                  | While LPAREN expr RPAREN  unterminated_statement
 //                  | For LPAREN simple_statement_opt SEMICOLON
-//                   expr_opt SEMICOLON simple_statement_opt RPAREN newline_opt
+//                   expr_opt SEMICOLON simple_statement_opt RPAREN 
 //                       unterminated_statement
-//                  | For LPAREN NAME In NAME RPAREN newline_opt
+//                  | For LPAREN NAME In NAME RPAREN 
 //                       unterminated_statement
 //                  ;
 
@@ -193,7 +208,7 @@ terminatable_statement
                  | Next { Next }
                  | Exit expr_opt { Exit $2 }
                  | Return expr_opt { Return $2 }
-                 | Do newline_opt terminated_statement While LPAREN expr RPAREN { Do ($3, $6) }
+                 | Do  terminated_statement While LPAREN expr RPAREN { Do ($2, $5) }
                  ;
 
 
@@ -210,7 +225,7 @@ simple_statement : Delete NAME LBRACK expr_list RBRACK { Delete (Identifier($2),
 
 print_statement  : simple_print_statement { $1 }
                //   | simple_print_statement output_redirection { }
-                 ;
+                 ;;
 // BRAWN FIXME: come back to this if we want output redirection
 
 // BRAWN FIXME: come back to this if we want output redirection
@@ -239,8 +254,8 @@ expr_list        : expr { [$1] }
 
 
 multiple_expr_list
-                 : expr COMMA newline_opt expr { $1 :: [$4] }
-                 | multiple_expr_list COMMA newline_opt expr { $1 @ [$4] }
+                 : expr COMMA  expr { $1 :: [$3] }
+                 | multiple_expr_list COMMA  expr { $1 @ [$3] }
                  ;
 
 
@@ -271,8 +286,8 @@ unary_expr       : PLUS expr { Positive $2 }
                  | unary_expr SQUIGGLE expr { Match ($1, $3) }
                  | unary_expr NO_MATCH expr { NonMatch ($1, $3) }
                  | unary_expr In NAME { Mem ($1, Identifier($3)) }
-                 | unary_expr AND newline_opt expr { And ($1, $4) }
-                 | unary_expr OR  newline_opt expr { Or ($1, $4) }
+                 | unary_expr AND  expr { And ($1, $3) }
+                 | unary_expr OR   expr { Or ($1, $3) }
                  | unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
                 //  | non_unary_input_function { Input $1 }
                 // BRAWN: this particular case is handled along with non-unary
@@ -300,8 +315,8 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                 // BRAWN: this is for multi-dimensional array membership.
                 // punting for now; let's talk about whether we want to 
                 // support this all around.
-                 | non_unary_expr AND newline_opt expr { And ($1, $4) }
-                 | non_unary_expr OR  newline_opt expr { Or ($1, $4) }
+                 | non_unary_expr AND  expr { And ($1, $3) }
+                 | non_unary_expr OR   expr { Or ($1, $3) }
                  | non_unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
                  | NUMBER { Number $1 }
                  | STRING { String $1 }
@@ -333,14 +348,14 @@ print_expr_list_opt : /* empty */
 
 
 print_expr_list  : expr { [$1] }
-                 | print_expr_list COMMA newline_opt expr { $1 @ [$4] }
+                 | print_expr_list COMMA  expr { $1 @ [$3] }
                  ;
 
 // BRAWN: We have nixed unary_print_expr and non_unary_print_expr
 
 lvalue           : NAME { IdentVal (Identifier ($1)) }
                  | NAME LBRACK expr_list RBRACK { ArrayVal (Identifier($1), $3) }
-                 | DOLLAR expr { Dollar ($2) }
+                 | DOLLAR expr { debug_print "PLvalue: dollar \n"; Dollar ($2) }
                  ;
 
 non_unary_input_function
@@ -355,12 +370,6 @@ non_unary_input_function
                 //  ;
 
 
-
 simple_get       : GETLINE { Getline None }
                  | GETLINE lvalue { Getline (Some $2) }
-                 ;
-
-
-newline_opt      : { } /* empty */
-                 | newline_opt NEWLINE { }
                  ;
