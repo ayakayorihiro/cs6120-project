@@ -26,8 +26,8 @@
 /*          'exit' 'for' 'function' 'if' 'in'        */
 
 
-%token       Next   Print   Printf   Return   While
-/*          'next' 'print' 'printf' 'return' 'while' */
+%token       Next   Print   Return   While
+/*          'next' 'print' 'return' 'while' */
 
 
 /* Reserved function names */
@@ -37,7 +37,7 @@
              * gsub index length match split sprintf sub
              * substr tolower toupper close system
              */
-%token GETLINE
+/* %token GETLINE */
             /* Syntactically different from other built-ins. */
 
 
@@ -52,7 +52,7 @@
 
 /* One-character tokens. */
 %token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON // EOF
-%token PLUS MINUS MULT MOD POW BANG GT LT PIPE QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV
+%token PLUS MINUS MULT MOD POW BANG GT LT QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV //  PIPE
 
 /* lowest precedence - always reduce */
 %right	ASSIGN
@@ -79,9 +79,9 @@
 %%
 
 
-program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program $1 }
-                 | actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program $1 }
-                 | EOF { Program [] }
+program          : function_item_list item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program ($1, $2) }
+                 | function_item_list actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program($1, $2) }
+                 | EOF { Program([], []) }
                  ;
 
 
@@ -94,23 +94,30 @@ item_list        : actionless_item_list item SEMICOLON {
                          }
                  | item_list item SEMICOLON { 
                       debug_print "PItem_list: item_list item\n" ; $1 @ [$2] }
-                 | item_list action SEMICOLON { debug_print "PItem_list: item_list action\n" ; $1 @ [ActionDecl(ExpressionList [], $2)] }
+                 | item_list action SEMICOLON { debug_print "PItem_list: item_list action\n" ; $1 @ [Action(None, Some $2)] }
                  /* FIXME: Note that we may just want to make a separate constructor in pattern that is just... "None" */
                  | { debug_print "PItem_list: Empty item\n" ; [] }
                  ;
 
 
 actionless_item_list
-                 : item_list            pattern SEMICOLON { $1 @ [ActionDecl($2, Skip)] }
-                 | actionless_item_list pattern SEMICOLON { $1 @ [ActionDecl($2, Skip)] }
+                 : item_list            pattern SEMICOLON { $1 @ [Action(Some $2, None)] }
+                 | actionless_item_list pattern SEMICOLON { $1 @ [Action(Some $2, None)] }
                  ;
 
 
-item             : pattern action { debug_print "PItem: pattern action\n"; ActionDecl ($1, $2) }
-                 | Function NAME      LPAREN param_list_opt RPAREN action 
-                    { FunctionDecl (Function (Identifier($2), $4, $6)) }
+item             : pattern action { debug_print "PItem: pattern action\n"; Action (Some $1, Some $2) }
+
+function_item_list: 
+     function_item_list function_item { $1 @ [$2] }
+     | function_item { [$1] } 
+     | {[]}
+
+function_item:
+                 Function NAME      LPAREN param_list_opt RPAREN action 
+                    { Function (Identifier($2), $4, Some $6) }
                  | Function FUNC_NAME LPAREN param_list_opt RPAREN action 
-                    { FunctionDecl (Function (Identifier($2), $4, $6)) }
+                    { Function (Identifier($2), $4, Some $6) }
                  ;
 
 
@@ -126,7 +133,8 @@ param_list       : NAME { [Identifier($1)] }
 
 pattern          : Begin { debug_print "beginnnnnnn\n%!"; Begin }
                  | End { End }
-                 | expr_list { ExpressionList ($1) }
+                 | expr { Expr ($1) }
+                 | expr COMMA expr { Range ($1, $3) }
                  ;
 
 
@@ -213,7 +221,7 @@ simple_statement_opt : { None } /* empty */
 
 simple_statement : Delete NAME LBRACK expr_list RBRACK { Delete (Identifier($2), $4) }
                  | expr { Expression $1 }
-                 | print_statement { Print $1 }
+                 | print_statement { $1 }
                  ;
 
 
@@ -232,8 +240,6 @@ print_statement  : simple_print_statement { $1 }
 simple_print_statement
                  : Print  print_expr_list_opt { Print $2 }
                  | Print  LPAREN multiple_expr_list RPAREN { Print $3 }
-                 | Printf print_expr_list { Printf $2 }
-                 | Printf LPAREN multiple_expr_list RPAREN { Printf $3 }
                  ;
 
 expr_list_opt    : /* empty */
@@ -279,7 +285,7 @@ unary_expr       : PLUS expr { Positive $2 }
                  | unary_expr GE expr { GreaterThanEq ($1, $3) }
                  | unary_expr SQUIGGLE expr { Match ($1, $3) }
                  | unary_expr NO_MATCH expr { NonMatch ($1, $3) }
-                 | unary_expr In NAME { Mem ($1, Identifier($3)) }
+                 | unary_expr In NAME { Member ($1, Identifier($3)) }
                  | unary_expr AND  expr { And ($1, $3) }
                  | unary_expr OR   expr { Or ($1, $3) }
                  | unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
@@ -304,7 +310,7 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                  | non_unary_expr GE expr { GreaterThanEq ($1, $3) }
                  | non_unary_expr SQUIGGLE expr { Match ($1, $3) }
                  | non_unary_expr NO_MATCH expr { NonMatch ($1, $3) }
-                 | non_unary_expr In NAME { Mem ($1, Identifier($3)) }
+                 | non_unary_expr In NAME { Member ($1, Identifier($3)) }
                 //  | LPAREN multiple_expr_list RPAREN In NAME
                 // BRAWN: this is for multi-dimensional array membership.
                 // punting for now; let's talk about whether we want to 
@@ -332,7 +338,7 @@ non_unary_expr   : LPAREN expr RPAREN { $2 }
                  | BUILTIN_FUNC_NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
                  | BUILTIN_FUNC_NAME { FuncCall (Identifier $1, []) }
                  // BRAWN: maybe these should be separate from regular func calls?
-                 | non_unary_input_function { Input $1 }
+                 /* | non_unary_input_function { Input $1 } */
                  ;
 
 
@@ -352,10 +358,10 @@ lvalue           : NAME { IdentVal (Identifier ($1)) }
                  | DOLLAR expr { debug_print "PLvalue: dollar \n"; Dollar ($2) }
                  ;
 
-non_unary_input_function
-                 : simple_get { SimpleGet $1 }
-                 | simple_get LT expr { Redirect ($1, $3) }
-                 | unary_expr PIPE simple_get { Pipe ($1, $3) }
+/* non_unary_input_function
+                 : simple_get { SimpleGet $1 } */
+                 /* | simple_get LT expr { Redirect ($1, $3) } */
+                 /* | unary_expr PIPE simple_get { Pipe ($1, $3) } */
 
 // BRAWN: there is no need for this, because the third constructor above
 // can handle unary and non-unary cases. 
@@ -364,6 +370,6 @@ non_unary_input_function
                 //  ;
 
 
-simple_get       : GETLINE { Getline None }
+/* simple_get       : GETLINE { Getline None }
                  | GETLINE lvalue { Getline (Some $2) }
-                 ;
+                 ; */
