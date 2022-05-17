@@ -1,4 +1,4 @@
-type pattern = Begin | End | ExpressionList of expr list
+type pattern = Begin | End | Expr of expr
 
 and ident = Identifier of string
 
@@ -11,12 +11,12 @@ and simple_get = Getline of lvalue option
 
 and lvalue =
       IdentVal of ident
-    | ArrayVal of ident * expr list
+    | ArrayVal of ident * expr
     | Dollar of expr
 
 and expr =
       Input of input
-    | FuncCall of ident * expr list
+    | FuncCall of ident * expr
     | Plus of expr * expr
     | Subtract of expr * expr
     | Multiply of expr * expr
@@ -56,8 +56,8 @@ and expr =
     | Assignment of lvalue * expr
 
 type print =
-      Print of expr list
-    | Printf of expr list
+      Print of expr
+    | Printf of expr
 
 type statement =
       If of expr * statement * statement option
@@ -70,17 +70,17 @@ type statement =
     | Next
     | Exit of expr option
     | Return of expr option
-    | Delete of ident * expr list
+    | Delete of ident * expr
     | Print of print
     | Expression of expr
     | Block of statement list
     | Skip
 
-type func = Function of ident * ident list * statement list
+type func = Function of ident * ident list * statement
 
 type item =
     | FunctionDecl of func
-    | ActionDecl of pattern * statement list
+    | ActionDecl of pattern * statement
 
 type program = Program of item list
 
