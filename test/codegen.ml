@@ -111,7 +111,7 @@ let rec codegen_expr expr =
   | RIncr lv -> codegen_expr (Assignment (lv, Plus (LValue lv, Number 1.0))) 
   | LDecr lv (* treating a-- and --a the same for now *)
   | RDecr lv -> codegen_expr (Assignment (lv, Subtract (LValue lv, Number 1.0)))
-  | LValue e -> unimplemented
+  | LValue _ -> unimplemented
   | Number f -> const_float brawn_type f
   | String s -> const_stringz context s
   | PowAssign (lv, e) -> codegen_expr (Assignment (lv, Pow (LValue lv, e)))
@@ -125,8 +125,31 @@ let rec codegen_expr expr =
       let e' = codegen_expr e in 
       build_call_from_runtime "brawn_assign" [|lv'; e'|] builder
 
-let codegen_stmt _ = unimplemented
-    
+let codegen_stmt stmt = 
+  match stmt with    
+  | If (guard, then_e, Some else_e) -> unimplemented
+  | If (guard, then_e, None) -> unimplemented
+  | While (guard, body) -> unimplemented
+  | Do (body, guard) -> unimplemented
+  | For (init_opt, guard_opt, update_opt, body) -> unimplemented
+  | RangedFor (start_ident, end_ident, body) -> unimplemented
+  | Break
+  | Continue
+  | Next -> unimplemented
+  | Exit (Some e) -> unimplemented
+  | Exit None -> unimplemented
+  | Return (Some e) -> let e' = codegen_expr e in build_ret e' builder
+  | Return None -> build_ret_void builder
+  | Delete (name, exprs) -> unimplemented
+    (* not sure what's going on here. 
+       the guide gives the use as     
+          delete array[index]
+     *)
+  | Print exprs -> unimplemented
+  | Expression expr -> unimplemented
+  | Block stmts -> unimplemented
+  | Skip -> unimplemented
+
 let codegen_action_decl _ _ = unimplemented
   (* if we match the pattern, run the body *)
 
@@ -145,7 +168,6 @@ let codegen_function_decl (Function (Identifier name, parameters, body)) =
     delete_function the_function;
     raise e
 
-
 let codegen_item = function
   | FunctionDecl func -> codegen_function_decl func
   | ActionDecl (pattern, stmt) -> codegen_action_decl pattern stmt
@@ -153,7 +175,6 @@ let codegen_item = function
 (* TODO: this should be fleshed out further to take care of control flow etc *)
 let codegen_program ((Program items) : program) =
   List.map codegen_item items 
-  
   
 let id_function = 
   let decl = declare_function "id" (function_type brawn_type [|brawn_type|]) program_module in
