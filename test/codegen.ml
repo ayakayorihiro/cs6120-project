@@ -125,14 +125,17 @@ let rec codegen_expr expr =
       let e' = codegen_expr e in 
       build_call_from_runtime "brawn_assign" [|lv'; e'|] builder
 
-let codegen_stmt stmt = 
+
+let codegen_ifthenelse guard then_stmt else_stmt = unimplemented
+
+let rec codegen_stmt stmt = 
   match stmt with    
-  | If (guard, then_e, Some else_e) -> unimplemented
-  | If (guard, then_e, None) -> unimplemented
+  | If (guard, then_stmt, Some else_stmt) -> unimplemented
+  | If (guard, then_stmt, None) -> codegen_stmt (If (guard, then_stmt, Some Skip))
   | While (guard, body) -> unimplemented
   | Do (body, guard) -> unimplemented
   | For (init_opt, guard_opt, update_opt, body) -> unimplemented
-  | RangedFor (start_ident, end_ident, body) -> unimplemented
+  | RangedFor (ele, array, body) -> unimplemented
   | Break
   | Continue
   | Next -> unimplemented
@@ -141,14 +144,17 @@ let codegen_stmt stmt =
   | Return (Some e) -> let e' = codegen_expr e in build_ret e' builder
   | Return None -> build_ret_void builder
   | Delete (name, exprs) -> unimplemented
-    (* not sure what's going on here. 
-       the guide gives the use as     
+    (* not sure what's going on here.
+       the guide gives the use as  
           delete array[index]
      *)
   | Print exprs -> unimplemented
-  | Expression expr -> unimplemented
-  | Block stmts -> unimplemented
-  | Skip -> unimplemented
+  | Expression e -> codegen_expr e
+  | Block stmts -> (* what's a sensible return value? *) 
+      let ans = List.map codegen_stmt stmts in 
+      List.hd (List.rev ans)
+      (* for now I'm just passing back the last llvalue *)
+  | Skip -> unimplemented (* ?? *)
 
 let codegen_action_decl _ _ = unimplemented
   (* if we match the pattern, run the body *)
@@ -186,8 +192,8 @@ let id_function =
   decl
 
 let emit_llvm () =
-let _ = codegen_expr in
-let _ = codegen_program in
+  let _ = codegen_expr in
+  let _ = codegen_program in
   let _ = id_function in
   dump_module program_module
 
