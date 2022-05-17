@@ -18,12 +18,20 @@ let handle_parse_error buf f =
 ;;
 
 (* let parse_program (input : IO.input) = *)
-let parse_program (input : string) : program =
+let parse_program_from_string (input : string) : program =
   let buf = Lexing.from_string input in
   handle_parse_error buf @@ fun () ->
   Grammar.program Tokens.token buf
 ;;
 
-let _ = print_endline @@ show_program @@ parse_program "BEGIN { ENVIRON[\"USER\"] = \"ayaka\"; print ENVIRON[\"USER\"]}; EOF"
+let parse_program (input : in_channel) : program =
+let _ = parse_program_from_string in
+  let buf = Lexing.from_channel input in
+  handle_parse_error buf @@ fun () ->
+  Grammar.program Tokens.token buf
+;;
+
+let _ = print_endline @@ Sys.getcwd() ;
+print_endline @@ show_program @@ parse_program (open_in "../../../test/benchmarks/f1.awk")
 (* "BEGIN { a=1 ; print a }; EOF" *)
 ;;

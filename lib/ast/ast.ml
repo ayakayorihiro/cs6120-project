@@ -1,26 +1,23 @@
-type pattern = Begin | End | Expr of expr | ExpressionList of expr list
+(* This fine specifies the AST of a Brawn program. *)
+
+(* Pattern to match in the patter-action pairs *)
+type pattern = Begin | End | Expr of expr | Range of expr * expr
 [@@deriving show]
 
+(* Identifiers for variable names and functions *)
 and ident = Identifier of string
 [@@deriving show]
 
-and input =
-     | SimpleGet of simple_get
-     | Pipe of expr * simple_get
-     | Redirect of simple_get * expr
-[@@deriving show]
-
-and simple_get = Getline of lvalue option
-[@@deriving show]
-
+(* Lvalues are values that can be referenced by name *)
 and lvalue =
     | IdentVal of ident
     | ArrayVal of ident * expr list
     | Dollar of expr
 [@@deriving show]
 
+(* Expressions in Brawn *)
 and expr =
-    | Input of input
+    | Getline of lvalue option
     | FuncCall of ident * expr list
     | Plus of expr * expr
     | Subtract of expr * expr
@@ -40,7 +37,7 @@ and expr =
     | And of expr * expr
     | Or of expr * expr
     | Ternary of expr * expr * expr
-    | Mem of expr * ident
+    | Member of expr * ident
     | Negative of expr
     | Positive of expr
     | Not of expr
@@ -61,11 +58,7 @@ and expr =
     | Assignment of lvalue * expr
 [@@deriving show]
 
-type print =
-    | Print of expr list
-    | Printf of expr list
-    [@@deriving show]
-
+(* Statements in Brawn *)
 type statement =
     | If of expr * statement * statement option
     | While of expr * statement
@@ -78,20 +71,20 @@ type statement =
     | Exit of expr option
     | Return of expr option
     | Delete of ident * expr list
-    | Print of print
+    | Print of expr list
     | Expression of expr
     | Block of statement list
     | Skip
     [@@deriving show]
 
-type func = Function of ident * ident list * statement
+(* User-defined functions in Brawn *)
+type func = Function of ident * ident list * statement option
 [@@deriving show]
 
-type item =
-    | FunctionDecl of func
-    | ActionDecl of pattern * statement
-    [@@deriving show]
-
-type program = Program of item list
+(* Pattern-action pair *)
+type action = Action of pattern option * statement option
 [@@deriving show]
 
+(* Brawn program *)
+type program = Program of func list * action list
+[@@deriving show]
