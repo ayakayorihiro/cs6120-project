@@ -1,5 +1,5 @@
 open Brawn_parser
-(* open Brawn_ast.Ast;; *)
+open Brawn_ast.Ast;;
 
 open Lexing;;
 
@@ -18,12 +18,12 @@ let handle_parse_error buf f =
 ;;
 
 (* let parse_program (input : IO.input) = *)
-let parse_program (input : string) =
+let parse_program (input : string) : program =
   let buf = Lexing.from_string input in
   handle_parse_error buf @@ fun () ->
   Grammar.program Tokens.token buf
 ;;
 
-let _ = parse_program "length($0) > 18; EOF"
+let _ = print_endline @@ show_program @@ parse_program "BEGIN { ENVIRON[\"USER\"] = \"ayaka\"; print ENVIRON[\"USER\"]}; EOF"
 (* "BEGIN { a=1 ; print a }; EOF" *)
 ;;
