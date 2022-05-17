@@ -22,15 +22,6 @@ let build_call_from_runtime name args builder =
 
 (* todo eventually remove *)
 let unimplemented = const_string context "unimplemented"
-
-(* in brawn this is just a helper *)
-let codegen_function_proto name args = 
-  let args_types = Array.make (List.length args) brawn_type in
-  let ft = function_type brawn_type args_types in
-  match lookup_function name program_module with
-  | None -> declare_function name ft program_module
-  | Some _ -> raise (CodeGenError "redefinition of function")
-
   
 (* The operands e1 and e2 have already been reduced. 
    Now do the final binary tie-up.
@@ -156,45 +147,40 @@ let rec codegen_stmt stmt =
       (* for now I'm just passing back the last llvalue *)
   | Skip -> unimplemented (* ?? *)
 
-let codegen_action_decl _ _ = unimplemented
-  (* if we match the pattern, run the body *)
+let codegen_action = function
+  | Action (None, None) -> unimplemented
+  | Action (None, Some stmt) -> codegen_stmt stmt
+  | Action (Some patt, None) -> unimplemented
+  | Action (Some patt, Some stmt) -> unimplemented
 
-let codegen_function_decl (Function (Identifier name, parameters, body)) =
-  (* probably don't want to clear out the named_values hashtable, 
-      as the guide says to. *)
-  let the_function = codegen_function_proto name parameters in
-  let bb = append_block context "entry" the_function in
-  position_at_end bb builder;
-  try
-    let ret_val = codegen_stmt body in 
-    let _ = build_ret ret_val builder in
-    Llvm_analysis.assert_valid_function the_function;
-    the_function
-  with e ->
-    delete_function the_function;
-    raise e
 
-let codegen_item = function
-  | FunctionDecl func -> codegen_function_decl func
-  | ActionDecl (pattern, stmt) -> codegen_action_decl pattern stmt
+let codegen_func_proto name num_args = 
+  let args_types = Array.make num_args brawn_type in
+  let ft = function_type brawn_type args_types in
+  match lookup_function name program_module with
+  | None -> declare_function name ft program_module
+  | Some _ -> raise (CodeGenError "redefinition of function")
+  (* I've simplified this compared to the guide. Redefinition is never allowed. *)
+
+let codegen_func (Function (Identifier name, args, body)) =
+  (* the guide says to clear out the named_values hashtable, I'm skipping that. *)
+  let the_function = codegen_func_proto name (List.length args) in
+  match body with 
+  | None -> the_function (* it was just a prototype. we're done. *)
+  | Some body' -> (* it had a body. add it. *)
+      let bb = append_block context "entry" the_function in
+      position_at_end bb builder;
+      try
+        let ret_val = codegen_stmt body' in 
+        let _ = build_ret ret_val builder in
+        Llvm_analysis.assert_valid_function the_function;
+        the_function
+      with e ->
+        delete_function the_function;
+        raise e
 
 (* TODO: this should be fleshed out further to take care of control flow etc *)
-let codegen_program ((Program items) : program) =
-  List.map codegen_item items 
-  
-let id_function = 
-  let decl = declare_function "id" (function_type brawn_type [|brawn_type|]) program_module in
-  let entry = append_block context "entry" decl in
-  position_at_end entry builder;
-  let ret_val = param decl 0 in
-  let _ = build_ret ret_val builder in
-  Llvm_analysis.assert_valid_function decl;
-  decl
-
-let emit_llvm () =
-  let _ = codegen_expr in
-  let _ = codegen_program in
-  let _ = id_function in
-  dump_module program_module
-
-let _ = emit_llvm ()
+let codegen_program ((Program (funcs, actions)) : program) =
+  ignore (List.map codegen_func funcs);
+  ignore (List.map codegen_action actions);
+  dump_module program_module   (* more sensible return value? *)
