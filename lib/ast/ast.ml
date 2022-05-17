@@ -15,47 +15,62 @@ and lvalue =
     | Dollar of expr
 [@@deriving show]
 
+(* Binary operations in Brawn *)
+and binop =
+    | Plus
+    | Subtract
+    | Multiply
+    | Divide
+    | Mod
+    | Pow
+    | LessThan
+    | LessThanEq
+    | Equals
+    | NotEquals
+    | GreaterThan
+    | GreaterThanEq
+    | Match
+    | NonMatch
+    | And
+    | Or
+    | Concat
+
+(* Unary operations in Brawn *)
+and unop =
+    | Negative
+    | Positive
+    | Not
+
+(* In-place update operations in Brawn *)
+and updateop =
+    | PowAssign
+    | ModAssign
+    | MulAssign
+    | DivAssign
+    | AddAssign
+    | SubAssign
+
+(* Prefix and postfix operations in Brawn *)
+and prepostops =
+    | Incr
+    | Decr
+
 (* Expressions in Brawn *)
 and expr =
+    | BinaryOp of binop * expr * expr
+    | UnaryOp of unop * expr
+    | UpdateOp of updateop * lvalue * expr
     | Getline of lvalue option
     | FuncCall of ident * expr list
-    | Plus of expr * expr
-    | Subtract of expr * expr
-    | Multiply of expr * expr
-    | Divide of expr * expr
-    | Mod of expr * expr
-    | Pow of expr * expr
-    | LessThan of expr * expr
-    | LessThanEq of expr * expr
-    | Equals of expr * expr
-    | NotEquals of expr * expr
-    | GreaterThan of expr * expr
-    | GreaterThanEq of expr * expr
-    | Match of expr * expr
-    | NonMatch of expr * expr
-    | Regexp of string
-    | And of expr * expr
-    | Or of expr * expr
     | Ternary of expr * expr * expr
     | Member of expr * ident
-    | Negative of expr
-    | Positive of expr
-    | Not of expr
-    | LIncr of lvalue
-    | LDecr of lvalue
-    | RIncr of lvalue
-    | RDecr of lvalue
+    | Postfix of prepostops * lvalue
+    | Prefix of prepostops * lvalue
     | LValue of lvalue
+    | Assignment of lvalue * expr
+    | Regexp of string
     | Number of float
     | String of string
-    | Concat of expr * expr
-    | PowAssign of lvalue * expr
-    | ModAssign of lvalue * expr
-    | MulAssign of lvalue * expr
-    | DivAssign of lvalue * expr
-    | AddAssign of lvalue * expr
-    | SubAssign of lvalue * expr
-    | Assignment of lvalue * expr
 [@@deriving show]
 
 (* Statements in Brawn *)
