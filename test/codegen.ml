@@ -82,7 +82,16 @@ let rec codegen_expr expr =
       let e1' = codegen_expr e1 in 
       let e2' = codegen_expr e2 in 
       codegen_binary_expr expr [|e1'; e2'|]
-  | Match _ -> unimplemented
+  | Match (e1, e2) -> 
+      (* this has different treatment depending on whether e2 is a Regexp *)
+      let e1' = codegen_expr e1 in 
+      ( match e2 with 
+        | Regexp str -> ignore str; unimplemented
+          (* TODO this is wrong; I'm wondering how to pass the 
+             std::regex that is expected by your signature when the build_call
+             expects an llvalue array *)
+        | _ -> build_call_from_runtime "brawn_match" [|e1'; (codegen_expr e2)|] builder
+      )
   | NonMatch _ -> unimplemented
   | Regexp _ -> unimplemented
   | Ternary (e1, e2, e3) -> 
