@@ -51,7 +51,6 @@
 
 /* One-character tokens. */
 %token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON // EOF
-%token ForLPAREN WhileLPAREN IfLPAREN
 %token PLUS MINUS MULT MOD POW BANG GT LT PIPE QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV
 
 /* lowest precedence - always reduce */
@@ -88,24 +87,29 @@ program          : item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; P
 /* NOTE: actual AWK does not necessitate a semicolon at the end of each item, but because the parser was being
    finnicky with newlines and the such, I defered to forcing each item needing to be ended with a semicolon.
 */
-item_list        : actionless_item_list item SEMICOLON { debug_print "PItem_list: actionless_item_list item" ; $1 @ [$2] }
-                 | item_list            item SEMICOLON { debug_print "PItem_list: item_list item" ; $1 @ [$2] }
-                 | item_list          action SEMICOLON { debug_print "PItem_list: item_list action" ; $1 @ [ActionDecl([], [$2])] }
+item_list        : actionless_item_list item SEMICOLON { 
+                         debug_print "PItem_list: actionless_item_list item" ;
+                         $1 @ [$2] 
+                         }
+                 | item_list item SEMICOLON { 
+                      debug_print "PItem_list: item_list item\n" ; $1 @ [$2] }
+                 | item_list action SEMICOLON { debug_print "PItem_list: item_list action\n" ; $1 @ [ActionDecl(ExpressionList [], $2)] }
+                 /* FIXME: Note that we may just want to make a separate constructor in pattern that is just... "None" */
                  | { debug_print "PItem_list: Empty item\n" ; [] }
                  ;
 
 
 actionless_item_list
-                 : item_list            pattern SEMICOLON { $1 @ [ActionDecl([$2], [])] }
-                 | actionless_item_list pattern SEMICOLON { $1 @ [ActionDecl([$2], [])] }
+                 : item_list            pattern SEMICOLON { $1 @ [ActionDecl($2, Skip)] }
+                 | actionless_item_list pattern SEMICOLON { $1 @ [ActionDecl($2, Skip)] }
                  ;
 
 
-item             : pattern action { debug_print "PItem: pattern action\n"; ActionDecl ([$1], [$2]) }
+item             : pattern action { debug_print "PItem: pattern action\n"; ActionDecl ($1, $2) }
                  | Function NAME      LPAREN param_list_opt RPAREN action 
-                    { FunctionDecl (Function (Identifier($2), $4, [$6])) }
+                    { FunctionDecl (Function (Identifier($2), $4, $6)) }
                  | Function FUNC_NAME LPAREN param_list_opt RPAREN action 
-                    { FunctionDecl (Function (Identifier($2), $4, [$6])) }
+                    { FunctionDecl (Function (Identifier($2), $4, $6)) }
                  ;
 
 
@@ -153,17 +157,6 @@ terminated_statement : action  { $1 }
                       terminated_statement { RangedFor (Identifier($3), Identifier($5), $7) }
                       /* NOTE: the below is a hack to prevent if/for/while without spaces 
                       before the parens to be accidentally interpreted as function names */
-                 | IfLPAREN expr RPAREN  terminated_statement { If ($2, $4, None) }
-                 | IfLPAREN expr RPAREN  terminated_statement
-                       Else  terminated_statement  { If ($2, $4, Some($6))}
-                 | WhileLPAREN expr RPAREN  terminated_statement { While ($2, $4) }
-                 | ForLPAREN simple_statement_opt SEMICOLON
-                      expr_opt SEMICOLON simple_statement_opt RPAREN 
-                      terminated_statement 
-                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
-                      For ($2, $4, $6, $8) }
-                 | ForLPAREN NAME In NAME RPAREN
-                      terminated_statement { RangedFor (Identifier($2), Identifier($4), $6) }
                  | SEMICOLON  { Skip }
                // BRAWN: Hmm, this used to be 
                //  | SEMICOLON  { }
