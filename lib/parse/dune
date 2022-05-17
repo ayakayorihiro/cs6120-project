@@ -8,6 +8,3 @@
  (name brawn_parser)
  (public_name brawn.parser)
  (libraries brawn.ast))
-
-; (ocamllex tokens)
-; (ocamlyacc grammar)

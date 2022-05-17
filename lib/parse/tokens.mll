@@ -44,7 +44,7 @@ rule token = parse
   | "in" { debug_print "In"; In }
   | "next" { debug_print "Next" ; Next }
   | "print" { debug_print "Print" ; Print }
-  | "printf" { debug_print "Printf"; Printf }
+  (* | "printf" { debug_print "Printf"; Printf } *)
   | "return" { debug_print "Return"; Return }
   | "while" { debug_print "While"; While }
   | "+=" { debug_print "ADD_ASSIGN" ; ADD_ASSIGN }
@@ -80,7 +80,7 @@ rule token = parse
   | '!' { debug_print "BANG";BANG }
   | '>' { debug_print "GT";GT }
   | '<' { debug_print "LT";LT }
-  | '|' { debug_print "PIPE";PIPE }
+  (* | '|' { debug_print "PIPE";PIPE } *)
   | '?' { debug_print "QMARK";QMARK }
   | ':' { debug_print "COLON";COLON }
   | '~' { debug_print "SQUIGGLE";SQUIGGLE }
