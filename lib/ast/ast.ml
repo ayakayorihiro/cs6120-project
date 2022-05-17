@@ -3,19 +3,19 @@ type pattern = Begin | End | Expr of expr
 and ident = Identifier of string
 
 and input =
-       SimpleGet of simple_get
+     | SimpleGet of simple_get
      | Pipe of expr * simple_get
      | Redirect of simple_get * expr
 
 and simple_get = Getline of lvalue option
 
 and lvalue =
-      IdentVal of ident
+    | IdentVal of ident
     | ArrayVal of ident * expr
     | Dollar of expr
 
 and expr =
-      Input of input
+    | Input of input
     | FuncCall of ident * expr
     | Plus of expr * expr
     | Subtract of expr * expr
@@ -56,11 +56,11 @@ and expr =
     | Assignment of lvalue * expr
 
 type print =
-      Print of expr
+    | Print of expr
     | Printf of expr
 
 type statement =
-      If of expr * statement * statement option
+    | If of expr * statement * statement option
     | While of expr * statement
     | Do of statement * expr
     | For of statement option * expr option * statement option * statement
