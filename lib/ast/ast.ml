@@ -1,4 +1,4 @@
-(* This fine specifies the AST of a Brawn program. *)
+(* This file specifies the AST of a Brawn program. *)
 
 (* Binary operations in Brawn *)
 type binop =
@@ -48,6 +48,13 @@ type prepostops =
 type ident = Identifier of string
 [@@deriving show]
 
+(* Literals in Brawn *)
+type literal =
+    | Number of float
+    | String of string
+    | Regexp of string
+[@@deriving show]
+
 (* Pattern to match in the patter-action pairs *)
 type pattern = Begin | End | Expr of expr | Range of expr * expr
 [@@deriving show]
@@ -72,9 +79,7 @@ and expr =
     | Prefix of prepostops * lvalue
     | LValue of lvalue
     | Assignment of lvalue * expr
-    | Regexp of string
-    | Number of float
-    | String of string
+    | Literal of literal
 [@@deriving show]
 
 (* Statements in Brawn *)

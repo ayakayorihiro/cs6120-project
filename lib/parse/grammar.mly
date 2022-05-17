@@ -1,5 +1,5 @@
 %{
-     open Brawn_ast.Ast;;
+    open Brawn_ast.Ast
 %}
 
 /* Keywords  */
@@ -31,7 +31,7 @@
 %token <string> STRING
 %token <string> ERE 
 %token <float>  NUMBER
-%token <string>  NAME
+%token <string> NAME
 
 /** Define precedences of operators. */
 %right    ASSIGN
@@ -57,6 +57,7 @@
 
 /* Specifying the types of productions. */
 %type <statement> statement
+%type <literal>   literal
 %type <updateop>  update_op
 %type <program>   program
 %type <binop>     bin_op
@@ -119,6 +120,11 @@ lvalue:
     | n=identifier LBRACK es=expr_list RBRACK { ArrayVal (n, es) }
     | DOLLAR e=expr { Dollar e }
 
+literal:
+    | n=NUMBER { Number n }
+    | s=STRING { String s }
+    | r=ERE { Regexp r }
+
 expr:
     | LPAREN e=expr RPAREN { e }
     | o=un_op e=expr { UnaryOp (o, e) }
@@ -129,10 +135,8 @@ expr:
     | LPAREN es=expr_list RPAREN In n=identifier { Member (es, n) }
     | c=expr QMARK tv=expr COLON fv=expr { Ternary (c, tv, fv) }
     | l=lvalue ASSIGN e=expr { Assignment (l, e) }
-    | n=NUMBER { Number n }
-    | s=STRING { String s }
+    | c=literal { Literal c }
     | l=lvalue { LValue l }
-    | r=ERE { Regexp r }
     | f=identifier LPAREN args=expr_list_opt RPAREN { FuncCall (f, args) }
     | GETLINE l=option(lvalue) { Getline l }
 
