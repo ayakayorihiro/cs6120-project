@@ -38,28 +38,29 @@ let codegen_function_proto name args =
    we are just here for the code this time 
 *)
 let codegen_binary_expr expr args =
+  let helper name = build_call_from_runtime name args builder in 
   match expr with 
-  | Plus _ -> build_call_from_runtime "brawn_add" args builder
-  | Subtract _ -> build_call_from_runtime "brawn_sub" args builder
-  | Multiply _ -> build_call_from_runtime "brawn_mult" args builder
-  | Divide _ -> build_call_from_runtime "brawn_div" args builder
-  | Mod _ -> build_call_from_runtime "brawn_mod" args builder
-  | Pow _ -> build_call_from_runtime "brawn_pow" args builder
-  | LessThan _ -> build_call_from_runtime "brawn_lt" args builder
-  | LessThanEq _ -> build_call_from_runtime "brawn_le" args builder
-  | Equals _ -> build_call_from_runtime "brawn_eq" args builder
-  | NotEquals _ -> build_call_from_runtime "brawn_ne" args builder
-  | GreaterThan _ -> build_call_from_runtime "brawn_gt" args builder
-  | GreaterThanEq _ -> build_call_from_runtime "brawn_ge" args builder
-  | And _ -> build_call_from_runtime "brawn_and" args builder
-  | Or _ -> build_call_from_runtime "brawn_or" args builder
-  | Concat _ -> build_call_from_runtime "brawn_concat" args builder
+  | Plus _ -> helper "brawn_add"
+  | Subtract _ -> helper "brawn_sub"
+  | Multiply _ -> helper "brawn_mult"
+  | Divide _ -> helper "brawn_div"
+  | Mod _ -> helper "brawn_mod"
+  | Pow _ -> helper "brawn_pow"
+  | LessThan _ -> helper "brawn_lt"
+  | LessThanEq _ -> helper "brawn_le"
+  | Equals _ -> helper "brawn_eq"
+  | NotEquals _ -> helper "brawn_ne"
+  | GreaterThan _ -> helper "brawn_gt"
+  | GreaterThanEq _ -> helper "brawn_ge"
+  | And _ -> helper "brawn_and"
+  | Or _ -> helper "brawn_or"
+  | Concat _ -> helper "brawn_concat"
   | _ -> raise (CodeGenError "Can't get here")
 
 let rec codegen_expr expr = 
   match expr with
-  | Input _ -> unimplemented (* todo get a helper involved *)
-  | FuncCall _ -> unimplemented (* see Kaleidoscope guide *)
+  | Input _ -> unimplemented
+  | FuncCall _ -> unimplemented
   | Plus (e1, e2) 
   | Subtract (e1, e2) 
   | Multiply (e1, e2)
@@ -81,37 +82,48 @@ let rec codegen_expr expr =
       let e1' = codegen_expr e1 in 
       let e2' = codegen_expr e2 in 
       codegen_binary_expr expr [|e1'; e2'|]
-  | Match _ -> unimplemented
+  | Match (e1, e2) -> 
+      (* this has different treatment depending on whether e2 is a Regexp *)
+      let e1' = codegen_expr e1 in 
+      ( match e2 with 
+        | Regexp str -> ignore str; unimplemented
+          (* TODO this is wrong; I'm wondering how to pass the 
+             std::regex that is expected by your signature when the build_call
+             expects an llvalue array *)
+        | _ -> build_call_from_runtime "brawn_match" [|e1'; (codegen_expr e2)|] builder
+      )
   | NonMatch _ -> unimplemented
   | Regexp _ -> unimplemented
-  | Ternary _ -> unimplemented (* const_select? *)
+  | Ternary (e1, e2, e3) -> 
+      let e1' = codegen_expr e1 in
+      let e2' = codegen_expr e2 in
+      let e3' = codegen_expr e3 in
+      let cond = build_call_from_runtime "brawn_is_true" [|e1'|] builder in
+      build_select cond e2' e3' "ternary_temp" builder
   | Mem _ -> unimplemented
-  | Negative _
-  | Positive _
-  | Not _ -> unimplemented
-  | LIncr _ 
-  | LDecr _
-  | RIncr _
-  | RDecr _
-  | LValue _ -> 
-      (* similarly, it makes sense to handle all these cases in one way,
-         then take cases on expr to see what specific thing
-         needs to be done for them *)
-          unimplemented
+  | Negative e -> 
+      let e' = codegen_expr e in 
+      build_call_from_runtime "brawn_neg" [|e'|] builder
+  | Positive e -> (* just id? *)
+      codegen_expr e 
+  | Not e -> let e' = codegen_expr e in build_call_from_runtime "brawn_not" [|e'|] builder
+  | LIncr lv (* treating a++ and ++a the same for now *)
+  | RIncr lv -> codegen_expr (Assignment (lv, Plus (LValue lv, Number 1.0))) 
+  | LDecr lv (* treating a-- and --a the same for now *)
+  | RDecr lv -> codegen_expr (Assignment (lv, Subtract (LValue lv, Number 1.0)))
+  | LValue e -> unimplemented
   | Number f -> const_float brawn_type f
   | String s -> const_stringz context s
-  | PowAssign (_, e)
-  | ModAssign (_, e)
-  | MulAssign (_, e)
-  | DivAssign (_, e)
-  | AddAssign (_, e)
-  | SubAssign (_, e)
-  | Assignment (_, e) -> 
-      (* again, do it once and then disambiguate again *)
-      let e' = codegen_expr e in
-      let _ = e' in 
-      (* ... *)
-      unimplemented
+  | PowAssign (lv, e) -> codegen_expr (Assignment (lv, Pow (LValue lv, e)))
+  | ModAssign (lv, e) -> codegen_expr (Assignment (lv, Mod (LValue lv, e)))
+  | MulAssign (lv, e) -> codegen_expr (Assignment (lv, Multiply (LValue lv, e)))
+  | DivAssign (lv, e) -> codegen_expr (Assignment (lv, Divide (LValue lv, e)))
+  | AddAssign (lv, e) -> codegen_expr (Assignment (lv, Plus (LValue lv, e)))
+  | SubAssign (lv, e) -> codegen_expr (Assignment (lv, Subtract (LValue lv, e)))
+  | Assignment (lv, e) -> 
+      let lv' = codegen_expr (LValue lv) in
+      let e' = codegen_expr e in 
+      build_call_from_runtime "brawn_assign" [|lv'; e'|] builder
 
 let codegen_stmt _ = unimplemented
     
