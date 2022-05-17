@@ -1,3 +1,0 @@
-(test
- (name codegen)
- (libraries llvm llvm.analysis brawn_ast brawn_parser))
