@@ -32,6 +32,6 @@ let _ = parse_program_from_string in
 ;;
 
 let _ = print_endline @@ Sys.getcwd() ;
-print_endline @@ show_program @@ parse_program (open_in "../../../test/benchmarks/f1.awk")
+print_endline @@ show_program @@ parse_program (open_in "../../../test/benchmarks/f2.awk")
 (* "BEGIN { a=1 ; print a }; EOF" *)
 ;;

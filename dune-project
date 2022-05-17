@@ -7,15 +7,15 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github ayakayorihiro/cs6120-project))
 
-(authors "Author Name")
+(authors "Big Red")
 
-(maintainers "Maintainer Name")
+(maintainers "Big Red")
 
 (license LICENSE)
 
-(documentation https://url/to/documentation)
+(documentation https://github.com/ayakayorihiro/cs6120-project/README)
 
 (package
  (name brawn)

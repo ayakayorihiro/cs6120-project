@@ -80,6 +80,7 @@ rule token = parse
   | '!' { debug_print "BANG";BANG }
   | '>' { debug_print "GT";GT }
   | '<' { debug_print "LT";LT }
+  | '@' { debug_print "CONCAT"; CONCAT}
   (* | '|' { debug_print "PIPE";PIPE } *)
   | '?' { debug_print "QMARK";QMARK }
   | ':' { debug_print "COLON";COLON }
@@ -91,6 +92,6 @@ rule token = parse
   (* Can we get rid of this, trusting Getline to return None when we hit eof? *)
   | "\"" (string_contents as s) "\"" { debug_print @@ "STRING " ^ s; STRING s }
   | "/" (regex_contents as r) "/" { debug_print @@ "REGEX " ^ r ; ERE r }
-  | built_in_names as funcname { debug_print @@ "BUILTIN_FUNC_NAME " ^ funcname ; BUILTIN_FUNC_NAME funcname }
+  (* | built_in_names as funcname { debug_print @@ "BUILTIN_FUNC_NAME " ^ funcname ; BUILTIN_FUNC_NAME funcname } *)
   (* | alpha rest '(' as funcname { debug_print @@ "FUNCNAME " ^ funcname; FUNC_NAME funcname } *)
   | ident_start ident_cont* as s { debug_print @@ "NAME " ^ s ; NAME s}

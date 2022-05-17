@@ -1,22 +1,7 @@
 (* This fine specifies the AST of a Brawn program. *)
 
-(* Pattern to match in the patter-action pairs *)
-type pattern = Begin | End | Expr of expr | Range of expr * expr
-[@@deriving show]
-
-(* Identifiers for variable names and functions *)
-and ident = Identifier of string
-[@@deriving show]
-
-(* Lvalues are values that can be referenced by name *)
-and lvalue =
-    | IdentVal of ident
-    | ArrayVal of ident * expr list
-    | Dollar of expr
-[@@deriving show]
-
 (* Binary operations in Brawn *)
-and binop =
+type binop =
     | Plus
     | Subtract
     | Multiply
@@ -34,26 +19,45 @@ and binop =
     | And
     | Or
     | Concat
+[@@deriving show]
 
 (* Unary operations in Brawn *)
-and unop =
+type unop =
     | Negative
     | Positive
     | Not
+[@@deriving show]
 
 (* In-place update operations in Brawn *)
-and updateop =
+type updateop =
     | PowAssign
     | ModAssign
     | MulAssign
     | DivAssign
     | AddAssign
     | SubAssign
+[@@deriving show]
 
 (* Prefix and postfix operations in Brawn *)
-and prepostops =
+type prepostops =
     | Incr
     | Decr
+[@@deriving show]
+
+(* Identifiers for variable names and functions *)
+type ident = Identifier of string
+[@@deriving show]
+
+(* Pattern to match in the patter-action pairs *)
+type pattern = Begin | End | Expr of expr | Range of expr * expr
+[@@deriving show]
+
+(* Lvalues are values that can be referenced by name *)
+and lvalue =
+    | IdentVal of ident
+    | ArrayVal of ident * expr list
+    | Dollar of expr
+[@@deriving show]
 
 (* Expressions in Brawn *)
 and expr =
@@ -63,7 +67,7 @@ and expr =
     | Getline of lvalue option
     | FuncCall of ident * expr list
     | Ternary of expr * expr * expr
-    | Member of expr * ident
+    | Member of expr list * ident
     | Postfix of prepostops * lvalue
     | Prefix of prepostops * lvalue
     | LValue of lvalue
@@ -90,7 +94,7 @@ type statement =
     | Expression of expr
     | Block of statement list
     | Skip
-    [@@deriving show]
+[@@deriving show]
 
 (* User-defined functions in Brawn *)
 type func = Function of ident * ident list * statement option
