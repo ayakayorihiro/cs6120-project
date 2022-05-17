@@ -15,49 +15,10 @@ let brawn_value_type = Option.get (type_by_name runtime_module "struct::brawn.br
 let brawn_type = pointer_type brawn_value_type
 
 (* Declare all runtime functions *)
-let brawn_init = Option.get (lookup_function "brawn_init" runtime_module)
-let brawn_from_number = Option.get (lookup_function "brawn_from_number" runtime_module)
-let brawn_from_string = Option.get (lookup_function "brawn_from_string" runtime_module)
-let brawn_from_regex = Option.get (lookup_function "brawn_from_regex" runtime_module)
-let brawn_init_array = Option.get (lookup_function "brawn_init_array" runtime_module)
-let brawn_assign = Option.get (lookup_function "brawn_assign" runtime_module)
-let brawn_index = Option.get (lookup_function "brawn_index" runtime_module)
-let brawn_not = Option.get (lookup_function "brawn_not" runtime_module)
-let brawn_neg = Option.get (lookup_function "brawn_neg" runtime_module)
-let brawn_add = Option.get (lookup_function "brawn_add" runtime_module)
-let brawn_sub = Option.get (lookup_function "brawn_sub" runtime_module)
-let brawn_mult = Option.get (lookup_function "brawn_mult" runtime_module)
-let brawn_div = Option.get (lookup_function "brawn_div" runtime_module)
-let brawn_pow = Option.get (lookup_function "brawn_pow" runtime_module)
-let brawn_mod = Option.get (lookup_function "brawn_mod" runtime_module)
-let brawn_and = Option.get (lookup_function "brawn_and" runtime_module)
-let brawn_or = Option.get (lookup_function "brawn_or" runtime_module)
-let brawn_lt = Option.get (lookup_function "brawn_lt" runtime_module)
-let brawn_gt = Option.get (lookup_function "brawn_gt" runtime_module)
-let brawn_le = Option.get (lookup_function "brawn_le" runtime_module)
-let brawn_ge = Option.get (lookup_function "brawn_ge" runtime_module)
-let brawn_eq = Option.get (lookup_function "brawn_eq" runtime_module)
-let brawn_ne = Option.get (lookup_function "brawn_ne" runtime_module)
-let brawn_concat = Option.get (lookup_function "brawn_concat" runtime_module)
-let brawn_match = Option.get (lookup_function "brawn_match" runtime_module)
-let brawn_match_regex = Option.get (lookup_function "brawn_match_regex" runtime_module)
-let brawn_atan2 = Option.get (lookup_function "brawn_atan2" runtime_module)
-let brawn_cos = Option.get (lookup_function "brawn_cos" runtime_module)
-let brawn_sin = Option.get (lookup_function "brawn_sin" runtime_module)
-let brawn_exp = Option.get (lookup_function "brawn_exp" runtime_module)
-let brawn_log = Option.get (lookup_function "brawn_log" runtime_module)
-let brawn_sqrt = Option.get (lookup_function "brawn_sqrt" runtime_module)
-let brawn_int = Option.get (lookup_function "brawn_int" runtime_module)
-let brawn_rand = Option.get (lookup_function "brawn_rand" runtime_module)
-let brawn_srand_time = Option.get (lookup_function "brawn_srand_time" runtime_module)
-let brawn_srand = Option.get (lookup_function "brawn_srand" runtime_module)
-let brawn_string_index = Option.get (lookup_function "brawn_string_index" runtime_module)
-let brawn_length = Option.get (lookup_function "brawn_length" runtime_module)
-let brawn_substr = Option.get (lookup_function "brawn_substr" runtime_module)
-let brawn_tolower = Option.get (lookup_function "brawn_tolower" runtime_module)
-let brawn_toupper = Option.get (lookup_function "brawn_toupper" runtime_module)
-let brawn_system = Option.get (lookup_function "brawn_system" runtime_module)
 
+let build_call_from_runtime name args builder = 
+  let func = Option.get (lookup_function "brawn_init" runtime_module) in 
+  build_call func args (name^"tmp") builder
 
 (* todo eventually remove *)
 let unimplemented = const_string context "unimplemented"
@@ -66,8 +27,8 @@ let unimplemented = const_string context "unimplemented"
 let codegen_function_proto name args = 
   let args_types = Array.make (List.length args) brawn_type in
   let ft = function_type brawn_type args_types in
-  match lookup_function name llvm_module with
-  | None -> declare_function name ft llvm_module
+  match lookup_function name program_module with
+  | None -> declare_function name ft program_module
   | Some _ -> raise (CodeGenError "redefinition of function")
 
   
@@ -78,21 +39,21 @@ let codegen_function_proto name args =
 *)
 let codegen_binary_expr expr args =
   match expr with 
-  | Plus _ -> build_call brawn_add args "addtmp" builder
-  | Subtract _ -> build_call brawn_sub args "subtmp" builder
-  | Multiply _ -> build_call brawn_mult args "multmp" builder
-  | Divide _ -> build_call brawn_div args "divtmp" builder
-  | Mod _ -> build_call brawn_mod args "modtmp" builder
-  | Pow _ -> build_call brawn_pow args "powtmp" builder
-  | LessThan _ -> build_call brawn_lt args "lttmp" builder
-  | LessThanEq _ -> build_call brawn_le args "letmp" builder
-  | Equals _ -> build_call brawn_eq args "eqtmp" builder
-  | NotEquals _ -> build_call brawn_ne args "netmp" builder
-  | GreaterThan _ -> build_call brawn_gt args "gttmp" builder
-  | GreaterThanEq _ -> build_call brawn_ge args "getmp" builder
-  | And _ -> build_call brawn_and args "andtmp" builder
-  | Or _ -> build_call brawn_or args "ortmp" builder
-  | Concat _ -> build_call brawn_concat args "concattmp" builder
+  | Plus _ -> build_call_from_runtime "brawn_add" args builder
+  | Subtract _ -> build_call_from_runtime "brawn_sub" args builder
+  | Multiply _ -> build_call_from_runtime "brawn_mult" args builder
+  | Divide _ -> build_call_from_runtime "brawn_div" args builder
+  | Mod _ -> build_call_from_runtime "brawn_mod" args builder
+  | Pow _ -> build_call_from_runtime "brawn_pow" args builder
+  | LessThan _ -> build_call_from_runtime "brawn_lt" args builder
+  | LessThanEq _ -> build_call_from_runtime "brawn_le" args builder
+  | Equals _ -> build_call_from_runtime "brawn_eq" args builder
+  | NotEquals _ -> build_call_from_runtime "brawn_ne" args builder
+  | GreaterThan _ -> build_call_from_runtime "brawn_gt" args builder
+  | GreaterThanEq _ -> build_call_from_runtime "brawn_ge" args builder
+  | And _ -> build_call_from_runtime "brawn_and" args builder
+  | Or _ -> build_call_from_runtime "brawn_or" args builder
+  | Concat _ -> build_call_from_runtime "brawn_concat" args builder
   | _ -> raise (CodeGenError "Can't get here")
 
 let rec codegen_expr expr = 
@@ -183,7 +144,7 @@ let codegen_program ((Program items) : program) =
   
   
 let id_function = 
-  let decl = declare_function "id" (function_type brawn_type [|brawn_type|]) llvm_module in
+  let decl = declare_function "id" (function_type brawn_type [|brawn_type|]) program_module in
   let entry = append_block context "entry" decl in
   position_at_end entry builder;
   let ret_val = param decl 0 in
@@ -195,6 +156,6 @@ let emit_llvm () =
 let _ = codegen_expr in
 let _ = codegen_program in
   let _ = id_function in
-  dump_module llvm_module
+  dump_module program_module
 
 let _ = emit_llvm ()
