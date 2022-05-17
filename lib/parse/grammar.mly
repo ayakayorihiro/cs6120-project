@@ -1,7 +1,8 @@
 %{
      open Brawn_ast.Ast;;
-     let debug_print content = 
-     let _ = Printf.printf content in ()
+     let debug_print _ = 
+     ()
+     (* let _ = Printf.printf content in () *)
      ;;
 %}
 
@@ -130,8 +131,8 @@ pattern          : Begin { debug_print "beginnnnnnn\n%!"; Begin }
 
 
 action           : LCURL RCURL { debug_print "PAction: LCURL RCURL\n%!" ; Block [] }
-                 | LCURL terminated_statement_list   RCURL { Printf.printf "PAction: LCURL terminated_statement_list   RCURL\n%!" ; Block $2 }
-               //   | LCURL unterminated_statement_list RCURL { Printf.printf "PAction: LCURL unterminated_statement_list bRCURL\n%!" ; $2 }
+                 | LCURL terminated_statement_list   RCURL { debug_print "PAction: LCURL terminated_statement_list   RCURL\n%!" ; Block $2 }
+               //   | LCURL unterminated_statement_list RCURL { debug_print "PAction: LCURL unterminated_statement_list bRCURL\n%!" ; $2 }
                  ;
 // BRAWN: 
 // We are not going to allow unterminated statements. 

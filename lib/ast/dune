@@ -1,3 +1,5 @@
 (library
  (name brawn_ast)
- (public_name brawn.ast))
+ (public_name brawn.ast)
+ (preprocess (pps ppx_deriving.show))
+ )

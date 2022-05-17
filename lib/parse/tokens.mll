@@ -1,9 +1,9 @@
 { open Grammar;;
   open Lexing;;
   (* NOTE: modify the below based on whether you'd like to see what tokens are generatedb *)
-  let debug_print content = 
-  print_endline content
-    (* () *)
+  let debug_print _ = 
+  (* print_endline content *)
+    ()
   let incr_lineno lexbuf =
     let pos = lexbuf.lex_curr_p in
     lexbuf.lex_curr_p <- { pos with
