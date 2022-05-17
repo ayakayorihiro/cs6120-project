@@ -24,7 +24,47 @@ let codegen_function_proto name args =
   | None -> declare_function name ft llvm_module
   | Some _ -> raise (CodeGenError "redefinition of function")
 
-let codegen_expr _ = unimplemented
+let codegen_expr expr = 
+  match expr with
+  | Input i -> unimplemented
+  | FuncCall (name, args) -> unimplemented
+  | Plus (e1, e2) 
+  | Subtract (e1, e2) 
+  | Multiply (e1, e2)
+  | Divide (e1, e2) 
+  | Mod (e1, e2)
+  | Pow (e1, e2)
+  | LessThan (e1, e2)
+  | LessThanEq (e1, e2)
+  | Equals (e1, e2)
+  | NotEquals (e1, e2)
+  | GreaterThan (e1, e2)
+  | GreaterThanEq (e1, e2)
+  | Match (e1, e2)
+  | NonMatch (e1, e2)
+  | And (e1, e2)
+  | Or (e1, e2)
+  | Concat (e1, e2) -> unimplemented
+  | Regexp str -> unimplemented
+  | Ternary (e1, e2, e3) -> unimplemented
+  | Mem (e, array_name) -> unimplemented
+  | Negative e -> unimplemented
+  | Positive e -> unimplemented
+  | Not e -> unimplemented
+  | LIncr lvalue 
+  | LDecr lvalue
+  | RIncr lvalue
+  | RDecr lvalue
+  | LValue lvalue -> unimplemented
+  | Number f -> unimplemented
+  | String s -> unimplemented
+  | PowAssign (lvalue, e)
+  | ModAssign (lvalue, e)
+  | MulAssign (lvalue, e)
+  | DivAssign (lvalue, e)
+  | AddAssign (lvalue, e)
+  | SubAssign (lvalue, e)
+  | Assignment (lvalue, e) -> unimplemented
 
 
 let codegen_function_decl (Function (Identifier name, parameters, body)) =
