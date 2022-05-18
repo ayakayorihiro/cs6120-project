@@ -1,6 +1,7 @@
 (* This file performs typechecking of a Brawn program. *)
 
 open Brawn_ast.Ast
+open Builtins
 
 exception TypeCheckError of string
 
