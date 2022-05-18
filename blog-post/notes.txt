@@ -1,0 +1,1 @@
+benchmarks obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md
