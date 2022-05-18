@@ -145,36 +145,93 @@ and codegen_expr = function
         codegen_lvalue_update u' l
     | Literal l -> lookup_constant l
 
-let rec codegen_stmt  = function
-    | If (e, ts, Some fs) ->
-        let c' = codegen_expr e in
-        let this = insertion_block builder in
-        let fn = block_parent this in
-        let tru = append_block context "true" fn in
-        position_at_end tru builder;
-    | If (guard, then_stmt, None) -> unimplemented
+let rec codegen_if cond ts fs =
+    (* condition to perform jump with *)
+    let c' = build_runtime_call "is_true" [|codegen_expr cond|] in
+
+    (* get the current block and function *)
+    let curr = insertion_block builder in
+    let fn = block_parent curr in
+
+    (* emit true block *)
+    let tb = append_block context "then" fn in
+    position_at_end tb builder;
+    codegen_stmt ts;
+    let tb' = insertion_block builder in
+
+    (* emit false block *)
+    let fb = append_block context "else" fn in
+    position_at_end fb builder;
+    codegen_stmt fs;
+    let fb' = insertion_block builder in
+
+    (* emit merge block *)
+    let cb = append_block context "cont" fn in
+    position_at_end cb builder;
+
+    (* add the conditional branch to the start block *)
+    position_at_end curr builder;
+    ignore (build_cond_br c' tb fb builder);
+
+    (* jump to merge block *)
+    position_at_end tb' builder; ignore (build_br cb builder);
+    position_at_end fb' builder; ignore (build_br cb builder);
+    position_at_end cb builder;
+
+and codegen_for init guard update body =
+  (* Emit the start code first *)
+  (* let start_val = codegen_stmt init in
+
+  (* Make the new basic block for the loop header, inserting after current block. *)
+  let preheader_bb = insertion_block builder in
+  let the_function = block_parent preheader_bb in
+  let loop_bb = append_block context "loop" the_function in
+
+  (* Insert an explicit fall through from the current block to the loop_bb. *)
+  ignore (build_br loop_bb builder);
+
+  (* Start insertion in loop_bb. *)
+  position_at_end loop_bb builder;
+
+  (* Start the PHI node with an entry for start. *)
+  let variable = build_phi [(start_val, preheader_bb)] "tmp" builder in *)
+
+  (* hmm let's do this together carefully *)
+  unimplemented
+
+and codegen_stmt = function
+    | If (cond, ts, Some fs) -> codegen_if cond ts fs
+    | If (cond, ts, None) -> codegen_stmt (If (cond, ts, Some Skip))
     | While (guard, body) -> unimplemented
     | Do (body, guard) -> unimplemented
-    | For (init_opt, guard_opt, update_opt, body) -> unimplemented
-    | RangedFor (ele, array, body) -> unimplemented
+    | For (is, c, us, s) ->
+        let is' = if Option.is_some is then Option.get is else Skip in
+        let c' = if Option.is_some c then Option.get c else Literal (Number 1.) in
+        let us' = if Option.is_some us then Option.get us else Skip in
+        codegen_for is' c' us' s
+    | RangedFor (e, a, s) -> unimplemented
     | Break
     | Continue
     | Next -> unimplemented
     | Exit (Some e) -> unimplemented
     | Exit None -> unimplemented
-    | Return (Some e) ->
-        let e' = codegen_expr e in
-        ignore (build_ret e' builder)
+    | Return (Some e) -> let e' = codegen_expr e in ignore (build_ret e' builder)
     | Return None -> ignore (build_ret_void builder)
-    | Delete (name, exprs) -> unimplemented
-    | Print exprs -> unimplemented
+    | Delete (i, es) ->
+        let e' = codegen_expr (concat_array_index es) in
+        ignore (build_runtime_call "delete_array" [|lookup_variable i; e'|])
+    | Print [] -> codegen_stmt (Print [LValue (Dollar (Literal (Number 0.)))])
+    | Print es ->
+        let args = Array.of_list (List.map codegen_expr es) in
+        let num = const_int (i32_type context) (List.length es) in
+        ignore (build_runtime_call "print" (Array.append [|num|] args))
     | Expression e -> ignore (codegen_expr e)
     | Block stmts ->
         List.iter codegen_stmt stmts
     | Skip -> ()
 
 let codegen_action = function
-  | Action (None, None) -> raise (CodeGenError "Can't get here")
+  | Action (None, None) -> raise (CodeGenError "brawn: action with no pattern or statement.")
   | Action (None, Some stmt) -> unimplemented
   | Action (Some patt, None) -> unimplemented
   | Action (Some patt, Some stmt) -> unimplemented
