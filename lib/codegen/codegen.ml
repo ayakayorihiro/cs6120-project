@@ -85,13 +85,27 @@ let get_op_from_updateop = function
   | AddAssign -> Plus
   | SubAssign -> Subtract
 
-let rec codegen_expr = function
+let rec codegen_func_call name args = 
+    let args = Array.of_list args in
+    let callee =
+      match lookup_function name program_module with
+      | Some callee -> callee
+      | None -> raise (CodeGenError "brawn: unknown function called.")
+    in
+    let params = params callee in
+    (* If argument mismatch error. *)
+    if Array.length params == Array.length args then () else
+      raise (CodeGenError "brawn: incorrect number of arguments passed.");
+    let args = Array.map codegen_expr args in
+    build_call callee args "calltmp" builder
+  
+and codegen_expr = function
   | BinaryOp (op, u, v) -> codegen_binary op (codegen_expr u) (codegen_expr v)
   | UnaryOp (op, u) -> codegen_unary op (codegen_expr u)
   | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
   | Getline None -> unimplemented
   | Getline (Some l) -> unimplemented
-  | FuncCall (name, args) -> codegen_func_call name args
+  | FuncCall (Identifier name, args) -> codegen_func_call name args
   | Ternary (u, v, w) ->
       let u' = codegen_expr u in
       let v' = codegen_expr v in
@@ -101,8 +115,14 @@ let rec codegen_expr = function
   | Member (es, name) ->
       let e' = codegen_expr (concat_array_index es) in
       build_runtime_call "member" [|e'; lookup_variable name|]
-  | Postfix (Incr, l) -> unimplemented
-  | Postfix (Decr, l) -> unimplemented
+  | Postfix (Incr, l) -> 
+      let stale = codegen_expr (LValue l) in 
+      ignore (codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.)))));
+      stale
+  | Postfix (Decr, l) ->
+      let stale = codegen_expr (LValue l) in 
+      ignore (codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.)))));
+      stale
   | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.))))
   | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.))))
   | LValue (IdentVal i) -> build_load (lookup_variable i) "load_temp" builder
