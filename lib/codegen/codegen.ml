@@ -149,9 +149,50 @@ and codegen_expr = function
                  then Hashtbl.find global_constants l
                  else raise (CodeGenError "brawn: literal constant not found.")
 
-let rec codegen_stmt stmt =
+let rec codegen_ifthenelse guard then_stmt else_stmt =
+  
+  let cond = build_runtime_call "is_true" [|codegen_expr guard|] in
+
+  let start_bb = insertion_block builder in
+  let the_function = block_parent start_bb in
+  let then_bb = append_block context "then" the_function in
+  position_at_end then_bb builder;
+  (* Emit 'then' value. *)
+  position_at_end then_bb builder;
+  let then_val = codegen_stmt then_stmt in
+
+  (* Codegen of 'then' can change the current block, update then_bb for the phi. 
+   * We create a new name because one is used for the phi node, and the
+   * other is used for the conditional branch. *)
+  let new_then_bb = insertion_block builder in
+  (* Emit 'else' value. *)
+  let else_bb = append_block context "else" the_function in
+  position_at_end else_bb builder;
+  let else_val = codegen_stmt else_stmt in
+
+  (* Codegen of 'else' can change the current block, update else_bb for the phi. *)
+  let new_else_bb = insertion_block builder in
+  (* Emit merge block. *)
+  let merge_bb = append_block context "ifcont" the_function in
+  position_at_end merge_bb builder;
+  let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
+  let phi = build_phi incoming "iftmp" builder in
+
+  (* Return to the start block to add the conditional branch. *)
+  position_at_end start_bb builder;
+  ignore (build_cond_br cond then_bb else_bb builder);
+  (* Set a unconditional branch at the end of the 'then' block and the
+  * 'else' block to the 'merge' block. *)
+  position_at_end new_then_bb builder; ignore (build_br merge_bb builder);
+  position_at_end new_else_bb builder; ignore (build_br merge_bb builder);
+ 
+  (* Finally, set the builder to the end of the merge block. *)
+  position_at_end merge_bb builder;
+  phi
+
+and codegen_stmt stmt =
   match stmt with
-  | If (guard, then_stmt, Some else_stmt) -> unimplemented
+  | If (guard, then_stmt, Some else_stmt) -> codegen_ifthenelse guard then_stmt else_stmt
   | If (guard, then_stmt, None) -> codegen_stmt (If (guard, then_stmt, Some Skip))
   | While (guard, body) -> unimplemented
   | Do (body, guard) -> unimplemented
