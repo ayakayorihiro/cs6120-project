@@ -102,6 +102,7 @@ let visit_action (Action (p, s)) =
 (* The entrypoint of the typechecking code. *)
 let visit_program (Program (f, a)) =
     List.iter (fun (f, n) -> Hashtbl.add functions f n) builtin_functions;
+    List.iter (fun l -> Hashtbl.add constants l true) builtin_consts;
     List.iter (record_global []) builtin_variables;
     List.iter record_func f;
     List.iter visit_func f;
