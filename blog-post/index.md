@@ -18,7 +18,7 @@ Our project is in service of `AWK`, which is a scripting language used to proces
 # Implementation
 
 ## Overview
-Here we will skate over the parts that are standard. We discuss more interesting issues in dedicated subsections.
+Here we skate over the parts that are standard. We discuss more interesting issues in dedicated subsections.
 
 Our plan is fairly standard:
 1. Parse `AWK` into `OCaml`.
@@ -27,7 +27,7 @@ Our plan is fairly standard:
 4. Linking the two pieces above gives us `LLVM` IR code without gaps. Optimize this in `LLVM`.
 
 Here's how we do it:
-1. We use `Menhir`, which takes a grammar in the `yacc` format and generates a parser for `OCaml`. We choose `Menhir`, and therefore `OCaml`, because the one of the officially-released grammars for `AWK` is written in `yacc`.
+1. We use `Menhir`, which takes a grammar in the `yacc` format and generates a parser for `OCaml`. We choose `Menhir`, and therefore `OCaml`, because one of the officially-released grammars for `AWK` is written in `yacc`.
 2. The mechanics of this step are standard, but this is also where we run into many gotchas and make many of our design decisions. We discuss these in future sections.
 3. This work is in `OCaml`. Essentially we walk over the AST generated previously and define an `LLVM` IR production for each constructor. Loosely speaking, there are three kinds of tasks:
     * issue straightforward calls to the `OCaml`-to-`LLVM` module
@@ -36,6 +36,12 @@ Here's how we do it:
 4. TK: gotta do it first
 
 ## Curiosities of AWK
+* dynamic
+* interpreted
+* some builtin functions can be called with variable number of arguments, and they have somewhat unusual behaviour when this is done. For example, 
+    * `length ()` succeeds: it gives the length of the argument $0. 
+    * `a = regex` assignment example...
+* The `BEGIN` and `END` block style requires custom control flow, as do the `next` and `exit` commands
 
 ## Points of Divergence (BRAWN vs AWK)
 
