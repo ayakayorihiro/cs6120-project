@@ -1,9 +1,11 @@
 #include <algorithm>
+#include <iostream>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <cctype>
+#include <cstdarg>
 
 #include "brawn_runtime.h"
 #include "brawn_variables.h"
@@ -46,8 +48,8 @@ brawn_value_t FS = brawn_from_string(" ");
 brawn_value_t NF = brawn_from_number(0);
 brawn_value_t NR = brawn_from_number(0);
 brawn_value_t OFMT = brawn_from_string("%.6g");
-brawn_value_t OFS = brawn_from_number(0);
-brawn_value_t ORS = brawn_from_number(0);
+brawn_value_t OFS = brawn_from_string(" ");
+brawn_value_t ORS = brawn_from_string("\n");
 brawn_value_t RLENGTH = brawn_from_number(0);
 brawn_value_t RS = brawn_from_string("\n");
 brawn_value_t RSTART = brawn_from_number(0);
@@ -108,6 +110,24 @@ static inline bool numeric_comparision(brawn_value_t value1, brawn_value_t value
     BRAWN_SCALAR(value2);
     return (value1->tag == NUMBER && (value2->tag == STRING || value2->tag == UNINITIALISED)) ||
            (value2->tag == NUMBER && (value1->tag == STRING || value1->tag == UNINITIALISED));
+}
+
+/**
+ * Print a brawn value to standard output.
+ *
+ * @value the value to print
+ */
+static inline void print_brawn_value(brawn_value_t value) {
+    BRAWN_SCALAR(value);
+    switch (value->tag) {
+        case NUMBER:
+            std::cout << value->number_val;
+        case STRING:
+            std::cout << *value->string_val;
+        case UNINITIALISED:
+        default:
+            return;
+    }
 }
 
 /**
@@ -188,6 +208,22 @@ brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index) {
         return result->second;
     }
 }
+
+void brawn_delete_array(brawn_value_t array, brawn_value_t index) {
+    BRAWN_ARRAY(array);
+    BRAWN_SCALAR(index);
+
+    // create an array if this value is uninitialised
+    if (array->tag == UNINITIALISED) {
+        array->array_val = new brawn_array;
+        array->tag = ARRAY;
+    }
+
+    // set the value at that index
+    auto key = get_string(index);
+    array->array_val->erase(key);
+}
+
 brawn_value_t brawn_update_array(brawn_value_t array, brawn_value_t index, brawn_value_t value) {
     BRAWN_ARRAY(array);
     BRAWN_SCALAR(index);
@@ -387,7 +423,7 @@ brawn_value_t brawn_rand() {
 static brawn_value_t curr_seed = brawn_from_number(1);
 
 brawn_value_t brawn_srand_time() {
-    // seed with the current time and return the 
+    // seed with the current time and return the
     // previous seed value
     auto previous_seed = curr_seed;
     auto now_seed = std::time(0);
@@ -397,7 +433,7 @@ brawn_value_t brawn_srand_time() {
 }
 
 brawn_value_t brawn_srand(brawn_value_t seed) {
-    // seed with the current time and return the 
+    // seed with the current time and return the
     // previous seed value
     BRAWN_SCALAR(seed);
     auto previous_seed = curr_seed;
@@ -460,6 +496,21 @@ brawn_value_t brawn_toupper(brawn_value_t string) {
 brawn_value_t brawn_system(brawn_value_t expression) {
     BRAWN_SCALAR(expression);
     return brawn_from_number(std::system(get_string(expression).c_str()));
+}
+
+brawn_value_t brawn_getline(brawn_value_t lvalue) {
+    BRAWN_SCALAR(lvalue);
+    return nullptr;
+}
+
+void brawn_print(uint32_t count, ...) {
+    std::va_list args;
+    va_start(args, count);
+    for (size_t i = 0; i < count; i++) {
+        print_brawn_value(va_arg(args, brawn_value_t));
+        print_brawn_value(OFS);
+    }
+    print_brawn_value(ORS);
 }
 
 #undef BRAWN_VALID

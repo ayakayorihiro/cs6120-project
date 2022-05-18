@@ -104,7 +104,7 @@ statement:
 simple_statement_opt :
      | s=option(simple_statement) { s }
 
-simple_statement: 
+simple_statement:
      | Delete n=identifier LBRACK es=expr_list RBRACK { Delete (n, es) }
      | e=expr { Expression e }
      | Print es=expr_list_opt { Print es }
