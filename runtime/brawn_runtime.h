@@ -68,31 +68,19 @@ struct brawn_value {
      */
     brawn_value(): tag(UNINITIALISED) {}
 
-    /**
-     * Initialise with a number.
-     */
-    brawn_value(double number): tag(NUMBER), number_val(number) {}
-
-    /**
-     * Initialise with a string.
-     */
-    brawn_value(brawn_string&& string): tag(STRING), string_val(new brawn_string(std::move(string))) {}
-
 };
-
-/**
- * Test a brawn value for truthiness.
- *
- * @param value
- *
- * @return truthiness
- */
-bool brawn_is_true(brawn_value_t value);
 
 /**
  * Return an uninitialised brawn value.
  */
 brawn_value_t brawn_init();
+
+/**
+ * Initialise a brawn value to be an array.
+ *
+ * @return a brawn vaue with an array
+ */
+brawn_value_t brawn_init_array();
 
 /**
  * Initialise a brawn value from a number.
@@ -101,7 +89,16 @@ brawn_value_t brawn_init();
  *
  * @return a brawn value containing that number
  */
-brawn_value_t brawn_from_number(float number);
+brawn_value_t brawn_from_number(double number);
+
+/**
+ * Initialise a brawn value from a C string.
+ *
+ * @param string the string
+ *
+ * @return a brawn value containing that C string
+ */
+brawn_value_t brawn_from_const_string(const char* string);
 
 /**
  * Initialise a brawn value from a string.
@@ -113,20 +110,22 @@ brawn_value_t brawn_from_number(float number);
 brawn_value_t brawn_from_string(std::string string);
 
 /**
- * Initialise a brawn value from a regular expression.
+ * Initialise a regular expression from a string.
  *
- * @param regex the regex
+ * @param pattern the pattern as a const string
  *
- * @return a brawn value containing that regex
+ * @return initialise that regex
  */
-brawn_value_t brawn_from_regex(std::regex regex);
+std::regex* brawn_init_regex(const char* pattern);
 
 /**
- * Initialise a brawn value to be an array.
+ * Test a brawn value for truthiness.
  *
- * @return a brawn vaue with an array
+ * @param value
+ *
+ * @return truthiness
  */
-brawn_value_t brawn_init_array();
+bool brawn_is_true(brawn_value_t value);
 
 /**
  * Assign a brawn value from another brawn value.

@@ -36,9 +36,9 @@
 namespace brawn {
 
 /** Create some static constant brawn values. */
-static brawn_value_t one = new brawn_value(1);
-static brawn_value_t zero = new brawn_value(0);
-static brawn_value_t empty_string = new brawn_value("");
+static brawn_value_t one = brawn_from_number(1);
+static brawn_value_t zero = brawn_from_number(0);
+static brawn_value_t empty_string = brawn_from_string("");
 
 /**
  * Return a number from the given brawn value.
@@ -111,15 +111,40 @@ brawn_value_t brawn_init() {
     return new brawn_value;
 }
 
-bool brawn_is_true(brawn_value_t value) {
-    return get_number(value) != 0;
-}
-
 brawn_value_t brawn_init_array() {
-    auto value = new brawn_value();
+    auto value = new brawn_value;
     value->array_val = new brawn_array;
     value->tag = ARRAY;
     return value;
+}
+
+brawn_value_t brawn_from_number(double number) {
+    auto value = new brawn_value;
+    value->number_val = number;
+    value->tag = NUMBER;
+    return value;
+}
+
+brawn_value_t brawn_from_const_string(const char* string) {
+    auto value = new brawn_value;
+    value->string_val = new brawn_string(string);
+    value->tag = STRING;
+    return value;
+}
+
+brawn_value_t brawn_from_string(brawn_string&& string) {
+    auto value = new brawn_value;
+    value->string_val = new brawn_string(std::move(string));
+    value->tag = STRING;
+    return value;
+}
+
+std::regex* brawn_init_regex(const char* pattern) {
+    return new std::regex(pattern);
+}
+
+bool brawn_is_true(brawn_value_t value) {
+    return get_number(value) != 0;
 }
 
 brawn_value_t brawn_assign(brawn_value_t lvalue, brawn_value_t value) {
@@ -155,31 +180,31 @@ brawn_value_t brawn_not(brawn_value_t value) {
 }
 
 brawn_value_t brawn_neg(brawn_value_t value) {
-    return new brawn_value(-get_number(value));
+    return brawn_from_number(-get_number(value));
 }
 
 brawn_value_t brawn_add(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(get_number(value1) + get_number(value2));
+    return brawn_from_number(get_number(value1) + get_number(value2));
 }
 
 brawn_value_t brawn_sub(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(get_number(value1) - get_number(value2));
+    return brawn_from_number(get_number(value1) - get_number(value2));
 }
 
 brawn_value_t brawn_mult(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(get_number(value1) * get_number(value2));
+    return brawn_from_number(get_number(value1) * get_number(value2));
 }
 
 brawn_value_t brawn_div(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(get_number(value1) / get_number(value2));
+    return brawn_from_number(get_number(value1) / get_number(value2));
 }
 
 brawn_value_t brawn_pow(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(std::pow(get_number(value1), get_number(value2)));
+    return brawn_from_number(std::pow(get_number(value1), get_number(value2)));
 }
 
 brawn_value_t brawn_mod(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(std::fmod(get_number(value1), get_number(value2)));
+    return brawn_from_number(std::fmod(get_number(value1), get_number(value2)));
 }
 
 brawn_value_t brawn_and(brawn_value_t value1, brawn_value_t value2) {
@@ -251,7 +276,7 @@ brawn_value_t brawn_ne(brawn_value_t value1, brawn_value_t value2) {
 }
 
 brawn_value_t brawn_concat(brawn_value_t value1, brawn_value_t value2) {
-    return new brawn_value(get_string(value1) + get_string(value2));
+    return brawn_from_string(get_string(value1) + get_string(value2));
 }
 
 brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern) {
@@ -267,52 +292,52 @@ brawn_value_t brawn_match_regex(brawn_value_t string, std::regex pattern) {
 brawn_value_t brawn_atan2(brawn_value_t y,brawn_value_t x) {
     BRAWN_SCALAR(x);
     BRAWN_SCALAR(y);
-    return new brawn_value(std::atan2(get_number(y), get_number(x)));
+    return brawn_from_number(std::atan2(get_number(y), get_number(x)));
 }
 
 brawn_value_t brawn_cos(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::cos(get_number(x)));
+    return brawn_from_number(std::cos(get_number(x)));
 }
 
 brawn_value_t brawn_sin(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::sin(get_number(x)));
+    return brawn_from_number(std::sin(get_number(x)));
 }
 
 brawn_value_t brawn_exp(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::exp(get_number(x)));
+    return brawn_from_number(std::exp(get_number(x)));
 }
 
 brawn_value_t brawn_log(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::log(get_number(x)));
+    return brawn_from_number(std::log(get_number(x)));
 }
 
 brawn_value_t brawn_sqrt(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::sqrt(get_number(x)));
+    return brawn_from_number(std::sqrt(get_number(x)));
 }
 
 brawn_value_t brawn_int(brawn_value_t x) {
     BRAWN_SCALAR(x);
-    return new brawn_value(std::trunc(get_number(x)));
+    return brawn_from_number(std::trunc(get_number(x)));
 }
 
 brawn_value_t brawn_rand() {
-    return new brawn_value(static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX));
+    return brawn_from_number(static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX));
 }
 
 /** Seed for the brawn runtime. */
-static brawn_value_t curr_seed = new brawn_value(1);
+static brawn_value_t curr_seed = brawn_from_number(1);
 
 brawn_value_t brawn_srand_time() {
     // seed with the current time and return the 
     // previous seed value
     auto previous_seed = curr_seed;
     auto now_seed = std::time(0);
-    curr_seed = new brawn_value(now_seed);
+    curr_seed = brawn_from_number(now_seed);
     std::srand(now_seed);
     return previous_seed;
 }
@@ -324,7 +349,7 @@ brawn_value_t brawn_srand(brawn_value_t seed) {
     // previous seed value
     auto previous_seed = curr_seed;
     auto now_seed = get_number(seed);
-    curr_seed = new brawn_value(now_seed);
+    curr_seed = brawn_from_number(now_seed);
     std::srand(now_seed);
     return previous_seed;
 }
@@ -336,13 +361,13 @@ brawn_value_t brawn_string_index(brawn_value_t string, brawn_value_t find) {
     if (result == std::string::npos) {
         return zero;
     } else {
-        return new brawn_value(result + 1);
+        return brawn_from_number(result + 1);
     }
 }
 
 brawn_value_t brawn_length(brawn_value_t string) {
     BRAWN_SCALAR(string);
-    return new brawn_value(get_string(string).size());
+    return brawn_from_number(get_string(string).size());
 }
 
 // brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern) {
@@ -358,26 +383,26 @@ brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_valu
     auto s = get_string(string);
     auto m = get_number(start);
     auto n = end == nullptr ? s.size() : get_number(end);
-    return new brawn_value(s.substr(m - 1, n));
+    return brawn_from_string(s.substr(m - 1, n));
 }
 
 brawn_value_t brawn_tolower(brawn_value_t string) {
     BRAWN_SCALAR(string);
     auto s = get_string(string);
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
-    return new brawn_value(std::move(s));
+    return brawn_from_string(std::move(s));
 }
 
 brawn_value_t brawn_toupper(brawn_value_t string) {
     BRAWN_SCALAR(string);
     auto s = get_string(string);
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::toupper(c); });
-    return new brawn_value(std::move(s));
+    return brawn_from_string(std::move(s));
 }
 
 brawn_value_t brawn_system(brawn_value_t expression) {
     BRAWN_SCALAR(expression);
-    return new brawn_value(std::system(get_string(expression).c_str()));
+    return brawn_from_number(std::system(get_string(expression).c_str()));
 }
 
 #undef BRAWN_VALID
