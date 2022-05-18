@@ -18,11 +18,11 @@ let regex_type = pointer_type regex_value_type
 (* A hashtable for all the global variables *)
 let global_variables = Hashtbl.create 10
 
-(* A hashtable for all the global constants *)
-let global_constants = Hashtbl.create 10
-
 (* A hashtable for all the local variables *)
 let local_variables = Hashtbl.create 10
+
+(* A hashtable for all the global constants *)
+let global_constants = Hashtbl.create 10
 
 (* The $ global variable. *)
 let dollar_value = Option.get (lookup_global "DOLLAR" runtime_module)
@@ -35,13 +35,21 @@ let lookup_variable name =
     then Hashtbl.find global_variables name
     else raise (CodeGenError "brawn: unknown identifier.")
 
+(* Lookup a global constant. *)
+let lookup_constant literal =
+    if Hashtbl.mem global_constants literal
+    then Hashtbl.find global_constants literal
+    else raise (CodeGenError "brawn: unknown literal.")
+
 (* Declare all runtime functions. *)
 let build_runtime_call name args =
     let func = Option.get (lookup_function ("brawn_" ^ name) runtime_module) in
     build_call func args (name ^ "_temp") builder
 
 (* todo eventually remove *)
-let unimplemented = const_string context "unimplemented"
+let unimplemented = raise (CodeGenError "brawn: unimplemented.")
+
+let codegen_func_call func args = unimplemented
 
 let codegen_binary op u v =
     let name = match op with
@@ -78,84 +86,92 @@ let rec concat_array_index = function
                    BinaryOp (Concat, e, BinaryOp (Concat, subsep, concat_array_index es))
 
 let get_op_from_updateop = function
-  | PowAssign -> Pow
-  | ModAssign -> Mod
-  | MulAssign -> Multiply
-  | DivAssign -> Divide
-  | AddAssign -> Plus
-  | SubAssign -> Subtract
+    | PowAssign -> Pow
+    | ModAssign -> Mod
+    | MulAssign -> Multiply
+    | DivAssign -> Divide
+    | AddAssign -> Plus
+    | SubAssign -> Subtract
 
-let rec codegen_expr = function
-  | BinaryOp (op, u, v) -> codegen_binary op (codegen_expr u) (codegen_expr v)
-  | UnaryOp (op, u) -> codegen_unary op (codegen_expr u)
-  | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
-  | Getline None -> unimplemented
-  | Getline (Some l) -> unimplemented
-  | FuncCall (name, args) -> codegen_func_call name args
-  | Ternary (u, v, w) ->
-      let u' = codegen_expr u in
-      let v' = codegen_expr v in
-      let w' = codegen_expr w in
-      let cond = build_runtime_call "is_true" [|u'|] in
-      build_select cond v' w' "ternary_temp" builder
-  | Member (es, name) ->
-      let e' = codegen_expr (concat_array_index es) in
-      build_runtime_call "member" [|e'; lookup_variable name|]
-  | Postfix (Incr, l) -> unimplemented
-  | Postfix (Decr, l) -> unimplemented
-  | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.))))
-  | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.))))
-  | LValue (IdentVal i) -> build_load (lookup_variable i) "load_temp" builder
-  | LValue (ArrayVal (i, es)) ->
-      let a' = lookup_variable i in
-      let l' = codegen_expr (concat_array_index es) in
-      build_runtime_call "index_array" [|a'; l'|]
-  | LValue (Dollar e) ->
-      let l' = codegen_expr e in
-      build_runtime_call "index_array" [|dollar_value; l'|]
-  | Assignment (IdentVal i, u) ->
-      let u' = codegen_expr u in
-      build_store (lookup_variable i) u' builder
-  | Assignment (ArrayVal (i, es), u) ->
-      let a' = lookup_variable i in
-      let l' = codegen_expr (concat_array_index es) in
-      let u' = codegen_expr u in
-      build_runtime_call "update_array" [|a'; l'; u'|]
-  | Assignment (Dollar e, u) ->
-      let l' = codegen_expr e in
-      let u' = codegen_expr u in
-      build_runtime_call "update_array" [|dollar_value; l'; u'|]
-  | Literal l -> if Hashtbl.mem global_constants l
-                 then Hashtbl.find global_constants l
-                 else raise (CodeGenError "brawn: literal constant not found.")
+let rec codegen_lvalue_get = function
+    | IdentVal i -> build_load (lookup_variable i) "load_temp" builder
+    | ArrayVal (i, es) ->
+        let a' = lookup_variable i in
+        let l' = codegen_expr (concat_array_index es) in
+        build_runtime_call "index_array" [|a'; l'|]
+    | Dollar e ->
+        let l' = codegen_expr e in
+        build_runtime_call "index_array" [|dollar_value; l'|]
 
-let rec codegen_stmt stmt =
-  match stmt with
-  | If (guard, then_stmt, Some else_stmt) -> unimplemented
-  | If (guard, then_stmt, None) -> codegen_stmt (If (guard, then_stmt, Some Skip))
-  | While (guard, body) -> unimplemented
-  | Do (body, guard) -> unimplemented
-  | For (init_opt, guard_opt, update_opt, body) -> unimplemented
-  | RangedFor (ele, array, body) -> unimplemented
-  | Break
-  | Continue
-  | Next -> unimplemented
-  | Exit (Some e) -> unimplemented
-  | Exit None -> unimplemented
-  | Return (Some e) -> let e' = codegen_expr e in build_ret e' builder
-  | Return None -> build_ret_void builder
-  | Delete (name, exprs) -> unimplemented
-    (* not sure what's going on here.
-       the guide gives the use as
-          delete array[index]
-     *)
-  | Print exprs -> unimplemented
-  | Expression e -> codegen_expr e
-  | Block stmts -> (* what's a sensible return value? *)
-      let ans = List.map codegen_stmt stmts in
-      List.hd (List.rev ans)
-      (* for now I'm just passing back the last llvalue *)
-  | Skip -> unimplemented (* ?? *)
+and codegen_lvalue_update u = function
+    | IdentVal i -> build_store (lookup_variable i) u builder
+    | ArrayVal (i, es) ->
+        let a' = lookup_variable i in
+        let l' = codegen_expr (concat_array_index es) in
+        build_runtime_call "update_array" [|a'; l'; u|]
+    | Dollar e ->
+        let l' = codegen_expr e in
+        build_runtime_call "update_array" [|dollar_value; l'; u|]
+
+and codegen_expr = function
+    | BinaryOp (op, u, v) -> codegen_binary op (codegen_expr u) (codegen_expr v)
+    | UnaryOp (op, u) -> codegen_unary op (codegen_expr u)
+    | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
+    | Getline None -> codegen_expr (Getline (Some (Dollar (Literal (Number 0.)))))
+    | Getline (Some l) -> build_runtime_call "getline" [|codegen_lvalue_get l|]
+    | FuncCall (name, args) -> codegen_func_call name args
+    | Ternary (u, v, w) ->
+        let u' = codegen_expr u in
+        let v' = codegen_expr v in
+        let w' = codegen_expr w in
+        let cond = build_runtime_call "is_true" [|u'|] in
+        build_select cond v' w' "ternary_temp" builder
+    | Member (es, name) ->
+        let e' = codegen_expr (concat_array_index es) in
+        build_runtime_call "member" [|e'; lookup_variable name|]
+    | Postfix (Incr, l) ->
+        let o' = codegen_lvalue_get l in
+        let n' = build_runtime_call "add" [|o'; lookup_constant (Number 1.)|] in
+        ignore (codegen_lvalue_update n' l); o'
+    | Postfix (Decr, l) ->
+        let o' = codegen_lvalue_get l in
+        let n' = build_runtime_call "add" [|o'; lookup_constant (Number 1.)|] in
+        ignore (codegen_lvalue_update n' l); o'
+    | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.))))
+    | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.))))
+    | LValue l -> codegen_lvalue_get l
+    | Assignment (l, u) ->
+        let u' = codegen_expr u in
+        codegen_lvalue_update u' l
+    | Literal l -> lookup_constant l
+
+let rec codegen_stmt  = function
+    | If (e, ts, Some fs) ->
+        let c' = codegen_expr e in
+        let this = insertion_block builder in
+        let fn = block_parent this in
+        let tru = append_block context "true" fn in
+        position_at_end tru builder;
+    | If (guard, then_stmt, None) -> unimplemented
+    | While (guard, body) -> unimplemented
+    | Do (body, guard) -> unimplemented
+    | For (init_opt, guard_opt, update_opt, body) -> unimplemented
+    | RangedFor (ele, array, body) -> unimplemented
+    | Break
+    | Continue
+    | Next -> unimplemented
+    | Exit (Some e) -> unimplemented
+    | Exit None -> unimplemented
+    | Return (Some e) ->
+        let e' = codegen_expr e in
+        ignore (build_ret e' builder)
+    | Return None -> ignore (build_ret_void builder)
+    | Delete (name, exprs) -> unimplemented
+    | Print exprs -> unimplemented
+    | Expression e -> ignore (codegen_expr e)
+    | Block stmts ->
+        List.iter codegen_stmt stmts
+    | Skip -> ()
 
 let codegen_action = function
   | Action (None, None) -> raise (CodeGenError "Can't get here")

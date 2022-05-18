@@ -2,6 +2,12 @@
 
 open Brawn_ast.Ast
 
+let builtin_consts = [
+    Number 1.;
+    Number 0.;
+    String ""
+]
+
 let builtin_functions = [
     (Identifier "atan2", 2);
     (Identifier "cos", 1);
