@@ -24,7 +24,7 @@ BEGIN    \
     _tm_months[0,10] = _tm_months[1,10] = 31
     _tm_months[0,11] = _tm_months[1,11] = 30
     _tm_months[0,12] = _tm_months[1,12] = 31
-}
+};
 
 # decide if a year is a leap year
 function _tm_isleap(year,    ret)
@@ -33,7 +33,7 @@ function _tm_isleap(year,    ret)
             (year % 400 == 0)
 
     return ret
-}
+};
 
 # convert a date into seconds
 function _tm_addup(a,    total, yearsecs, daysecs,
@@ -60,7 +60,7 @@ function _tm_addup(a,    total, yearsecs, daysecs,
     total += a[6]
 
     return total
-}
+};
 
 function mmktime(str,    res1, res2, a, b, i, j, t, diff)
 {
@@ -99,11 +99,11 @@ function mmktime(str,    res1, res2, a, b, i, j, t, diff)
     res1 += diff
 
     return res1
-}
+};
 
 BEGIN  {
     getline _tm_test_date
     t = mmktime(_tm_test_date)
     # r = strftime("%Y %m %d %H %M %S", t)
-    print "Got back (" t ")"
-}
+    print "Got back (" @ t @ ")"
+};
