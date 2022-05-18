@@ -3,13 +3,20 @@ open Brawn_ast.Ast
 
 exception CodeGenError of string
 
-(* Global constants *)
+(* Llvm constants *)
 let context = create_context ()
 let runtime_module = Llvm_irreader.parse_ir context (Llvm.MemoryBuffer.of_file "../runtime/brawn_runtime.ll")
 let program_module = create_module context "brawn"
 let builder = builder context
-let named_values: (string, llvalue) Hashtbl.t = Hashtbl.create 10
-let _ = named_values
+
+(* A hashtable for all the global variables *)
+let global_values = Hashtbl.create 10
+
+(* A hashtable for all the global constants *)
+let global_constants = Hashtbl.create 10
+
+(* A hashtable for all the local variables *)
+let local_variables = Hashtbl.create 10
 
 let brawn_value_type = Option.get (type_by_name runtime_module "struct::brawn.brawn_value")
 let brawn_type = pointer_type brawn_value_type
