@@ -148,6 +148,14 @@ brawn_value_t brawn_assign(brawn_value_t lvalue, brawn_value_t value);
 brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index);
 
 /**
+ * Delete the given index in the brawn array.
+ *
+ * @param array the brawn array
+ * @param index the index
+ */
+void brawn_delete_array(brawn_value_t array, brawn_value_t index);
+
+/**
  * Index into the given brawn array and update the value.
  *
  * @param array the brawn array
@@ -549,6 +557,22 @@ brawn_value_t brawn_toupper(brawn_value_t string);
  * @return the return value
  */
 brawn_value_t brawn_system(brawn_value_t expression);
+
+/**
+ * Perform the brawn `getline` operation.
+ *
+ * @param lvalue where to store the gotten line
+ *
+ * @return whether `getline` was successful
+ */
+brawn_value_t brawn_getline(brawn_value_t lvalue);
+
+/**
+ * Print a brawn expression.
+ *
+ * @count the number of arguments to print
+ */
+void brawn_print(uint32_t count, ...);
 
 } // extern "C"
 
