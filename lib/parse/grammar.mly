@@ -1,375 +1,179 @@
 %{
-     open Brawn_ast.Ast;;
-     let debug_print _ = 
-     ()
-     (* let _ = Printf.printf content in () *)
-     ;;
+    open Brawn_ast.Ast
 %}
-
-%token <string> NAME 
-%token <float> NUMBER
-%token <string> STRING
-%token <string> ERE
-%token <string> FUNC_NAME   /* Name followed by LPAREN without white space. */
-%token EOF
 
 /* Keywords  */
 %token       Begin   End
 /*          'BEGIN' 'END'                            */
 
-
 %token       Break   Continue   Delete   Do   Else
 /*          'break' 'continue' 'delete' 'do' 'else'  */
-
 
 %token       Exit   For   Function   If   In
 /*          'exit' 'for' 'function' 'if' 'in'        */
 
-
 %token       Next   Print   Return   While
 /*          'next' 'print' 'return' 'while' */
 
+/* Syntactically different from other built-ins. */
+%token       GETLINE
+/*          'getline' */
 
-/* Reserved function names */
-%token <string> BUILTIN_FUNC_NAME
-            /* One token for the following:
-             * atan2 cos sin exp log sqrt int rand srand
-             * gsub index length match split sprintf sub
-             * substr tolower toupper close system
-             */
-/* %token GETLINE */
-            /* Syntactically different from other built-ins. */
-
-
-/* Two-character tokens. */
+/* Tokens for binary and unary operators. */
 %token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN POW_ASSIGN
-/*     '+='       '-='       '*='       '/='       '%='       '^=' */
+%token OR   AND  NO_MATCH   EQ   LE   GE   NE   INCR  DECR
+%token PLUS MINUS MULT MOD POW BANG GT LT QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV CONCAT
 
+/* Tokens for punctuation. */
+%token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON EOF
 
-%token OR   AND  NO_MATCH   EQ   LE   GE   NE   INCR  DECR  // APPEND
-/*    '||' '&&'  '!˜'      '==' '<=' '>=' '!=' '++'  '--'  '>>'   */
-// Add APPEND back if we dedide we want output redirection
+/* Basic tokens for literals and identifiers. */
+%token <string> STRING
+%token <string> ERE 
+%token <float>  NUMBER
+%token <string> NAME
 
-/* One-character tokens. */
-%token LCURL RCURL LPAREN RPAREN LBRACK RBRACK COMMA SEMICOLON // EOF
-%token PLUS MINUS MULT MOD POW BANG GT LT QMARK COLON SQUIGGLE DOLLAR ASSIGN DIV //  PIPE
+/** Define precedences of operators. */
+%right    ASSIGN
+%right    SUB_ASSIGN ADD_ASSIGN
+%right    DIV_ASSIGN MUL_ASSIGN MOD_ASSIGN
+%right    POW_ASSIGN
+%right    COLON
+%left     OR
+%left     AND
+%left     In
+%nonassoc NO_MATCH SQUIGGLE
+%nonassoc GE GT EQ NE LE LT
+%left     MOD DIV MULT
+%left     CONCAT
+%nonassoc PLUS MINUS
+%nonassoc BANG
+%right    POW
+%nonassoc INCR DECR
+%nonassoc DOLLAR
 
-/* lowest precedence - always reduce */
-%right	ASSIGN
-%right	SUB_ASSIGN ADD_ASSIGN
-%right	DIV_ASSIGN MUL_ASSIGN MOD_ASSIGN
-%right	POW_ASSIGN
-%right	COLON
-%left	OR
-%left	AND
-// %left	( index ) in array
-%left	In
-%nonassoc	NO_MATCH SQUIGGLE
-%nonassoc	GE GT EQ NE LE LT
-// %left	expr expr
-%left	MOD DIV MULT
-%nonassoc	PLUS MINUS
-%nonassoc	BANG
-%right	POW
-%nonassoc	INCR DECR
-%nonassoc	DOLLAR
- /* highest precedence - always shift */
+/* The start production. */
+%start program
 
-%start <program> program
+/* Specifying the types of productions. */
+%type <statement> statement
+%type <literal>   literal
+%type <updateop>  update_op
+%type <program>   program
+%type <binop>     bin_op
+%type <unop>      un_op
+%type <expr>      expr
+
 %%
 
+program: fs=list(function_item) aa=list(item) EOF { Program (fs, aa) }
 
-program          : function_item_list item_list EOF { debug_print "PProgram: item_list EOF\n%!" ; Program ($1, $2) }
-                 | function_item_list actionless_item_list EOF { debug_print "PProgram: actionless_item_list EOF\n%!" ; Program($1, $2) }
-                 | EOF { Program([], []) }
-                 ;
+item:
+     | a=statement { Action (None, Some a) }
+     | p=pattern { Action (Some p, None) }
+     | p=pattern a=statement { Action (Some p, Some a) }
 
+function_item: Function n=identifier LPAREN args=param_list_opt RPAREN s=statement { Function (n, args, Some s) }
 
-/* NOTE: actual AWK does not necessitate a semicolon at the end of each item, but because the parser was being
-   finnicky with newlines and the such, I defered to forcing each item needing to be ended with a semicolon.
-*/
-item_list        : actionless_item_list item SEMICOLON { 
-                         debug_print "PItem_list: actionless_item_list item" ;
-                         $1 @ [$2] 
-                         }
-                 | item_list item SEMICOLON { 
-                      debug_print "PItem_list: item_list item\n" ; $1 @ [$2] }
-                 | item_list action SEMICOLON { debug_print "PItem_list: item_list action\n" ; $1 @ [Action(None, Some $2)] }
-                 /* FIXME: Note that we may just want to make a separate constructor in pattern that is just... "None" */
-                 | { debug_print "PItem_list: Empty item\n" ; [] }
-                 ;
+param_list_opt: ls=separated_list(COMMA, identifier) { ls }
 
+pattern:
+     | Begin { Begin }
+     | End { End }
+     | e=expr { Expr e }
+     | u=expr COMMA v=expr { Range (u, v) }
 
-actionless_item_list
-                 : item_list            pattern SEMICOLON { $1 @ [Action(Some $2, None)] }
-                 | actionless_item_list pattern SEMICOLON { $1 @ [Action(Some $2, None)] }
-                 ;
+statement_list: ls=nonempty_list(statement) { ls };
 
+statement:
+     | If LPAREN e=expr RPAREN s=statement { If (e, s, None) }
+     | If LPAREN e=expr RPAREN ts=statement Else fs=statement { If (e, ts, Some(fs))}
+     | While LPAREN e=expr RPAREN s=statement { While (e, s) }
+     | For LPAREN is=simple_statement_opt SEMICOLON e=expr_opt SEMICOLON us=simple_statement_opt RPAREN s=statement { For (is, e, us, s) }
+     | For LPAREN a=identifier In arr=identifier RPAREN s=statement { RangedFor (a, arr, s) }
+     | SEMICOLON  { Skip }
+     | s=simple_statement { s }
+     | Break { Break }
+     | Continue { Continue }
+     | Next { Next }
+     | Exit e=expr_opt { Exit e }
+     | Return e=expr_opt { Return e }
+     | Do s=statement While LPAREN e=expr RPAREN { Do (s, e) }
+     | LCURL ss=statement_list RCURL { Block ss }
 
-item             : pattern action { debug_print "PItem: pattern action\n"; Action (Some $1, Some $2) }
+simple_statement_opt :
+     | s=option(simple_statement) { s }
 
-function_item_list: 
-     function_item_list function_item { $1 @ [$2] }
-     | function_item { [$1] } 
-     | {[]}
+simple_statement: 
+     | Delete n=identifier LBRACK es=expr_list RBRACK { Delete (n, es) }
+     | e=expr { Expression e }
+     | Print es=expr_list_opt { Print es }
 
-function_item:
-                 Function NAME      LPAREN param_list_opt RPAREN action 
-                    { Function (Identifier($2), $4, Some $6) }
-                 | Function FUNC_NAME LPAREN param_list_opt RPAREN action 
-                    { Function (Identifier($2), $4, Some $6) }
-                 ;
+expr_list_opt: es=separated_list(COMMA, expr) { es } ;
 
+expr_list: es=separated_nonempty_list(COMMA, expr) { es }
 
-param_list_opt   : { [] } /* empty */
-                 | param_list { $1 }
-                 ;
+expr_opt: e=option(expr) { e }
 
+lvalue:
+    | n=identifier { IdentVal n }
+    | n=identifier LBRACK es=expr_list RBRACK { ArrayVal (n, es) }
+    | DOLLAR e=expr { Dollar e }
 
-param_list       : NAME { [Identifier($1)] }
-                 | param_list COMMA NAME { $1 @ [Identifier($3)] }
-                 ;
+literal:
+    | n=NUMBER { Number n }
+    | s=STRING { String s }
+    | r=ERE { Regexp r }
 
+expr:
+    | LPAREN e=expr RPAREN { e }
+    | o=un_op e=expr { UnaryOp (o, e) }
+    | u=expr o=bin_op v=expr { BinaryOp (o, u, v) }
+    | l=lvalue o=update_op e=expr { UpdateOp (o, l, e) } 
+    | l=lvalue o=incr_op { Postfix (o, l) }
+    | o=incr_op l=lvalue { Prefix (o, l) }
+    | LPAREN es=expr_list RPAREN In n=identifier { Member (es, n) }
+    | c=expr QMARK tv=expr COLON fv=expr { Ternary (c, tv, fv) }
+    | l=lvalue ASSIGN e=expr { Assignment (l, e) }
+    | c=literal { Literal c }
+    | l=lvalue { LValue l }
+    | f=identifier LPAREN args=expr_list_opt RPAREN { FuncCall (f, args) }
+    | GETLINE l=option(lvalue) { Getline l }
 
-pattern          : Begin { debug_print "beginnnnnnn\n%!"; Begin }
-                 | End { End }
-                 | expr { Expr ($1) }
-                 | expr COMMA expr { Range ($1, $3) }
-                 ;
+%inline update_op:
+    | POW_ASSIGN { PowAssign }
+    | MOD_ASSIGN { ModAssign }
+    | MUL_ASSIGN { MulAssign }
+    | DIV_ASSIGN { DivAssign }
+    | ADD_ASSIGN { AddAssign }
+    | SUB_ASSIGN { SubAssign }
 
+%inline incr_op:
+    | INCR { Incr }
+    | DECR { Decr }
 
-action           : LCURL RCURL { debug_print "PAction: LCURL RCURL\n%!" ; Block [] }
-                 | LCURL terminated_statement_list   RCURL { debug_print "PAction: LCURL terminated_statement_list   RCURL\n%!" ; Block $2 }
-               //   | LCURL unterminated_statement_list RCURL { debug_print "PAction: LCURL unterminated_statement_list bRCURL\n%!" ; $2 }
-                 ;
-// BRAWN: 
-// We are not going to allow unterminated statements. 
-// Instead, we will require that parens be used to create terminated statements
+%inline un_op:
+    | BANG  { Negative }
+    | MINUS { Negative }
+    | PLUS  { Positive }
 
+%inline bin_op:
+    | PLUS     { Plus }
+    | MINUS    { Subtract }
+    | MULT     { Multiply }
+    | DIV      { Divide }
+    | MOD      { Mod }
+    | LT       { LessThan }
+    | LE       { LessThanEq }
+    | GT       { GreaterThan }
+    | GE       { GreaterThanEq }
+    | AND      { And }
+    | OR       { Or }
+    | EQ       { Equals }
+    | NE       { NotEquals }
+    | SQUIGGLE { Match }
+    | NO_MATCH { NonMatch }
+    | POW      { Pow }
+    | CONCAT   { Concat }
 
-terminated_statement_list
-                 : terminated_statement { [$1] }
-                 | terminated_statement_list terminated_statement { $1 @ [$2] }
-                 ;
-
-terminated_statement : action  { $1 }
-                 | If LPAREN expr RPAREN  terminated_statement { If ($3, $5, None) }
-                 | If LPAREN expr RPAREN  terminated_statement
-                       Else  terminated_statement  { If ($3, $5, Some($7))}
-                 | While LPAREN expr RPAREN  terminated_statement { While ($3, $5) }
-                 | For LPAREN simple_statement_opt SEMICOLON
-                      expr_opt SEMICOLON simple_statement_opt RPAREN 
-                      terminated_statement 
-                      { debug_print "PTerminated_statement: For (simple_statement_opt; expr_opt; simple_statement_opt) terminated_statement";
-                      For ($3, $5, $7, $9) }
-                 | For LPAREN NAME In NAME RPAREN
-                      terminated_statement { RangedFor (Identifier($3), Identifier($5), $7) }
-                      /* NOTE: the below is a hack to prevent if/for/while without spaces 
-                      before the parens to be accidentally interpreted as function names */
-                 | SEMICOLON  { Skip }
-               // BRAWN: Hmm, this used to be 
-               //  | SEMICOLON  { }
-               // but that seemed like a strange thing to punt on.
-               // so I added "Skip" as a constructor to the AST and used that here.
-               // if 
-               // a) leaving the line commented out over here 
-               // is the same as
-               // b) having the line here and Skip-ing explicitly, 
-               // that's fine...       
-                 | terminatable_statement { $1 }
-                 | terminatable_statement SEMICOLON      { $1 }
-                 ;
-
-
-// BRAWN: 
-// We are not going to allow unterminated statements. 
-// Instead, we will require that parens be used to create terminated statements
-
-// unterminated_statement_list
-//                  : unterminated_statement { }
-//                  | terminated_statement_list unterminated_statement
-//                  ;
-
-// unterminated_statement : terminatable_statement
-//                  | If LPAREN expr RPAREN  unterminated_statement
-//                  | If LPAREN expr RPAREN  terminated_statement
-//                       Else  unterminated_statement
-//                  | While LPAREN expr RPAREN  unterminated_statement
-//                  | For LPAREN simple_statement_opt SEMICOLON
-//                   expr_opt SEMICOLON simple_statement_opt RPAREN 
-//                       unterminated_statement
-//                  | For LPAREN NAME In NAME RPAREN 
-//                       unterminated_statement
-//                  ;
-
-
-terminatable_statement
-                 : simple_statement { $1 }
-                 | Break { Break }
-                 | Continue { Continue }
-                 | Next { Next }
-                 | Exit expr_opt { Exit $2 }
-                 | Return expr_opt { Return $2 }
-                 | Do  terminated_statement While LPAREN expr RPAREN { Do ($2, $5) }
-                 ;
-
-
-simple_statement_opt : { None } /* empty */
-                     | simple_statement { Some ($1) }
-                     ;
-
-
-simple_statement : Delete NAME LBRACK expr_list RBRACK { Delete (Identifier($2), $4) }
-                 | expr { Expression $1 }
-                 | print_statement { $1 }
-                 ;
-
-
-print_statement  : simple_print_statement { $1 }
-               //   | simple_print_statement output_redirection { }
-                 ;;
-// BRAWN FIXME: come back to this if we want output redirection
-
-// BRAWN FIXME: come back to this if we want output redirection
-// output_redirection
-//                  : GT    expr { }
-//                  | APPEND expr
-//                  | PIPE    expr
-//                  ;
-
-simple_print_statement
-                 : Print  print_expr_list_opt { Print $2 }
-                 | Print  LPAREN multiple_expr_list RPAREN { Print $3 }
-                 ;
-
-expr_list_opt    : /* empty */
-                    { [] }
-                 | expr_list { $1 }
-                 ;
-
-
-expr_list        : expr { [$1] }
-                 | multiple_expr_list { $1 }
-                 ;
-
-
-multiple_expr_list
-                 : expr COMMA  expr { $1 :: [$3] }
-                 | multiple_expr_list COMMA  expr { $1 @ [$3] }
-                 ;
-
-
-expr_opt         : { None } /* empty */
-                 | expr { Some($1) }
-                 ;
-
-
-expr             : unary_expr { $1 }
-                 | non_unary_expr { $1 }
-                 ;
-
-unary_expr       : PLUS expr { Positive $2 }
-                 | MINUS expr { Negative $2 }
-                 | unary_expr POW expr { Pow ($1, $3) }
-                 | unary_expr MULT expr { Multiply ($1, $3) }
-                 | unary_expr DIV expr { Divide ($1, $3) }
-                 | unary_expr MOD expr { Mod ($1, $3) }
-                 | unary_expr PLUS expr { Plus ($1, $3) }
-                 | unary_expr MINUS expr { Subtract ($1, $3) }
-                 | unary_expr non_unary_expr { Concat($1, $2) }
-                 | unary_expr LT expr { LessThan ($1, $3) }
-                 | unary_expr LE expr { LessThanEq ($1, $3) }
-                 | unary_expr NE expr { NotEquals ($1, $3) }
-                 | unary_expr EQ expr { Equals ($1, $3) }
-                 | unary_expr GT expr { GreaterThan ($1, $3) }
-                 | unary_expr GE expr { GreaterThanEq ($1, $3) }
-                 | unary_expr SQUIGGLE expr { Match ($1, $3) }
-                 | unary_expr NO_MATCH expr { NonMatch ($1, $3) }
-                 | unary_expr In NAME { Member ($1, Identifier($3)) }
-                 | unary_expr AND  expr { And ($1, $3) }
-                 | unary_expr OR   expr { Or ($1, $3) }
-                 | unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
-                //  | non_unary_input_function { Input $1 }
-                // BRAWN: this particular case is handled along with non-unary
-                 ;
-
-non_unary_expr   : LPAREN expr RPAREN { $2 }
-                 | BANG expr { Not $2 }
-                 | non_unary_expr POW expr { Pow ($1, $3) }
-                 | non_unary_expr MULT expr { Multiply ($1, $3) }
-                 | non_unary_expr DIV expr { Divide ($1, $3) }
-                 | non_unary_expr MOD expr { Mod ($1, $3) }
-                 | non_unary_expr PLUS expr { Plus ($1, $3) }
-                 | non_unary_expr MINUS expr { Subtract ($1, $3) }
-                 | non_unary_expr non_unary_expr { Concat ($1, $2) }
-                 | non_unary_expr LT expr { LessThan ($1, $3) }
-                 | non_unary_expr LE expr { LessThanEq ($1, $3) }
-                 | non_unary_expr NE expr { NotEquals ($1, $3) }
-                 | non_unary_expr EQ expr { Equals ($1, $3) }
-                 | non_unary_expr GT expr { GreaterThan ($1, $3) }
-                 | non_unary_expr GE expr { GreaterThanEq ($1, $3) }
-                 | non_unary_expr SQUIGGLE expr { Match ($1, $3) }
-                 | non_unary_expr NO_MATCH expr { NonMatch ($1, $3) }
-                 | non_unary_expr In NAME { Member ($1, Identifier($3)) }
-                //  | LPAREN multiple_expr_list RPAREN In NAME
-                // BRAWN: this is for multi-dimensional array membership.
-                // punting for now; let's talk about whether we want to 
-                // support this all around.
-                 | non_unary_expr AND  expr { And ($1, $3) }
-                 | non_unary_expr OR   expr { Or ($1, $3) }
-                 | non_unary_expr QMARK expr COLON expr { Ternary ($1, $3, $5) }
-                 | NUMBER { Number $1 }
-                 | STRING { String $1 }
-                 | lvalue { LValue $1 }
-                 | ERE { String $1 }
-                 | lvalue INCR { LIncr $1 }
-                 | lvalue DECR { LDecr $1 } 
-                 | INCR lvalue { RIncr $2 }
-                 | DECR lvalue { RDecr $2 }
-                 | lvalue POW_ASSIGN expr { PowAssign ($1, $3) }
-                 | lvalue MOD_ASSIGN expr { ModAssign ($1, $3) }
-                 | lvalue MUL_ASSIGN expr { MulAssign ($1, $3) }
-                 | lvalue DIV_ASSIGN expr { DivAssign ($1, $3) }
-                 | lvalue ADD_ASSIGN expr { AddAssign ($1, $3) }
-                 | lvalue SUB_ASSIGN expr { SubAssign ($1, $3) }
-                 | lvalue ASSIGN expr { Assignment ($1, $3) }
-                 | NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
-                      /* no white space allowed before LPAREN */
-                 | BUILTIN_FUNC_NAME LPAREN expr_list_opt RPAREN { FuncCall (Identifier $1, $3) }
-                 | BUILTIN_FUNC_NAME { FuncCall (Identifier $1, []) }
-                 // BRAWN: maybe these should be separate from regular func calls?
-                 /* | non_unary_input_function { Input $1 } */
-                 ;
-
-
-print_expr_list_opt : /* empty */
-                    | print_expr_list { $1 }
-                    ;
-
-
-print_expr_list  : expr { [$1] }
-                 | print_expr_list COMMA  expr { $1 @ [$3] }
-                 ;
-
-// BRAWN: We have nixed unary_print_expr and non_unary_print_expr
-
-lvalue           : NAME { IdentVal (Identifier ($1)) }
-                 | NAME LBRACK expr_list RBRACK { ArrayVal (Identifier($1), $3) }
-                 | DOLLAR expr { debug_print "PLvalue: dollar \n"; Dollar ($2) }
-                 ;
-
-/* non_unary_input_function
-                 : simple_get { SimpleGet $1 } */
-                 /* | simple_get LT expr { Redirect ($1, $3) } */
-                 /* | unary_expr PIPE simple_get { Pipe ($1, $3) } */
-
-// BRAWN: there is no need for this, because the third constructor above
-// can handle unary and non-unary cases. 
-// unary_input_function
-                //  : unary_expr PIPE simple_get { Pipe ($1, $3) }
-                //  ;
-
-
-/* simple_get       : GETLINE { Getline None }
-                 | GETLINE lvalue { Getline (Some $2) }
-                 ; */
+identifier: n=NAME { Identifier n }
