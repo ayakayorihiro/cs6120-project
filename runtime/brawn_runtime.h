@@ -63,7 +63,7 @@ struct brawn_value {
         double         number_val; /** the container for the number */
     };
 
-    /** 
+    /**
      * Simple initialiser for a brawn value.
      */
     brawn_value(): tag(UNINITIALISED) {}
@@ -145,7 +145,18 @@ brawn_value_t brawn_assign(brawn_value_t lvalue, brawn_value_t value);
  *
  * @return the value at the index
  */
-brawn_value_t brawn_index(brawn_value_t array, brawn_value_t index);
+brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index);
+
+/**
+ * Index into the given brawn array and update the value.
+ *
+ * @param array the brawn array
+ * @param index the index
+ * @param value the new value
+ *
+ * @return the value at the index
+ */
+brawn_value_t brawn_update_array(brawn_value_t array, brawn_value_t index, brawn_value_t value);
 
 /**
  * Perform a logical not on the brawn value.
@@ -164,6 +175,16 @@ brawn_value_t brawn_not(brawn_value_t value);
  * @return the negated value
  */
 brawn_value_t brawn_neg(brawn_value_t value);
+
+/**
+ * Make the given brawn value positive.
+ *
+ * @param value
+ *
+ * @return the positive value
+ */
+brawn_value_t brawn_pos(brawn_value_t value);
+
 
 /**
  * Add the two brawn values.
@@ -333,7 +354,38 @@ brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern);
  *
  * @return whether the pattern matches to the string
  */
-brawn_value_t brawn_match_regex(brawn_value_t string, std::regex pattern);
+brawn_value_t brawn_match_regex(brawn_value_t string, std::regex* pattern);
+
+/**
+ * Does the pattern not match the given string.
+ *
+ * @param string  the string to match
+ * @param pattern the pattern
+ *
+ * @return whether the pattern doesn't match the string
+ */
+brawn_value_t brawn_not_match(brawn_value_t string, brawn_value_t pattern);
+
+/**
+ * Don't match the given brawn value to the regex.
+ *
+ * @param string  the string to match
+ * @param pattern the pattern
+ *
+ * @return whether the pattern doesn't match the string
+ */
+brawn_value_t brawn_not_match_regex(brawn_value_t string, std::regex* pattern);
+
+/**
+ * Check whether the given brawn value is
+ * in the given array.
+ *
+ * @param value the value to check
+ * @param array the array
+ *
+ * @return whether the value is in array
+ */
+brawn_value_t brawn_member(brawn_value_t value, brawn_value_t array);
 
 /**
  * Brawn inbuild function: atan2.
@@ -423,10 +475,6 @@ brawn_value_t brawn_srand_time();
  */
 brawn_value_t brawn_srand(brawn_value_t seed);
 
-// brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input);
-
-// brawn_value_t brawn_gsub_regex(std::regex pattern, brawn_value_t replace, brawn_value_t input);
-
 /**
  * Return the index of the string 'find'
  * in the string 'string'.
@@ -447,11 +495,22 @@ brawn_value_t brawn_string_index(brawn_value_t string, brawn_value_t find);
  */
 brawn_value_t brawn_length(brawn_value_t string);
 
-// brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern);
+brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input = nullptr);
 
-// brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator);
+brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input = nullptr);
 
-// brawn_value_t brawn_string_sub(ere, repl[, in  ]);
+brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern);
+
+brawn_value_t brawn_match_position_regex(brawn_value_t string, std::regex* regex);
+
+brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator = nullptr);
+
+/**
+ * Perform substitution on a brawn string.
+ */
+brawn_value_t brawn_string_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in = nullptr);
+
+brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in = nullptr);
 
 /**
  * Return the substring of the given string.

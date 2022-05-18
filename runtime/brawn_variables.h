@@ -23,6 +23,7 @@ extern brawn_value_t RLENGTH;
 extern brawn_value_t RS;
 extern brawn_value_t RSTART;
 extern brawn_value_t SUBSEP;
+extern brawn_value_t DOLLAR;
 
 }
 

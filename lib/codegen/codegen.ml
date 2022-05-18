@@ -11,10 +11,12 @@ let builder = builder context
 
 (* Llvm types *)
 let brawn_value_type = Option.get (type_by_name runtime_module "struct::brawn.brawn_value")
+let regex_value_type = Option.get (type_by_name runtime_module "class.std::__1::basic_regex")
 let brawn_type = pointer_type brawn_value_type
+let regex_type = pointer_type regex_value_type
 
 (* A hashtable for all the global variables *)
-let global_values = Hashtbl.create 10
+let global_variables = Hashtbl.create 10
 
 (* A hashtable for all the global constants *)
 let global_constants = Hashtbl.create 10
@@ -23,56 +25,57 @@ let global_constants = Hashtbl.create 10
 let local_variables = Hashtbl.create 10
 
 (* The $ global variable. *)
-let dollar_value = raise (CodeGenError "")
+let dollar_value = Option.get (lookup_global "DOLLAR" runtime_module)
 
-let lookup_value name =
+(* Lookup an identifier. *)
+let lookup_variable name =
     if Hashtbl.mem local_variables name
     then Hashtbl.find local_variables name
-    else
-        if Hashtbl.mem global_values name
-        then Hashtbl.find global_values name
-        else raise (CodeGenError "brawn: unknown identifier.")
+    else if Hashtbl.mem global_variables name
+    then Hashtbl.find global_variables name
+    else raise (CodeGenError "brawn: unknown identifier.")
 
-(* Declare all runtime functions *)
-let build_call_from_runtime name args builder =
-  let func = Option.get (lookup_function "brawn_init" runtime_module) in
-  build_call func args (name^"tmp") builder
+(* Declare all runtime functions. *)
+let build_runtime_call name args =
+    let func = Option.get (lookup_function ("brawn_" ^ name) runtime_module) in
+    build_call func args (name ^ "_temp") builder
 
 (* todo eventually remove *)
 let unimplemented = const_string context "unimplemented"
 
-(* The operands u and v have already been reduced.
- * Now do the final binary tie-up.
- *)
 let codegen_binary op u v =
-  let helper name = build_call_from_runtime name [|u; v|] builder in
-  match op with
-  | Plus -> helper "brawn_add"
-  | Subtract -> helper "brawn_sub"
-  | Multiply -> helper "brawn_mult"
-  | Divide -> helper "brawn_div"
-  | Mod -> helper "brawn_mod"
-  | Pow -> helper "brawn_pow"
-  | LessThan -> helper "brawn_lt"
-  | LessThanEq -> helper "brawn_le"
-  | Equals -> helper "brawn_eq"
-  | NotEquals -> helper "brawn_ne"
-  | GreaterThan -> helper "brawn_gt"
-  | GreaterThanEq -> helper "brawn_ge"
-  | Match when (type_of v) = brawn_type -> helper "brawn_match"
-  | Match                               -> helper "brawn_match_regex"
-  | NonMatch when (type_of v) = brawn_type -> helper "brawn_non_match"
-  | NonMatch                               -> helper "brawn_non_match_regex"
-  | And -> helper "brawn_and"
-  | Or -> helper "brawn_or"
-  | Concat -> helper "brawn_concat"
+    let name = match op with
+        | Or -> "or"
+        | And -> "and"
+        | Mod -> "mod"
+        | Pow -> "pow"
+        | Plus -> "add"
+        | Divide -> "div"
+        | Subtract -> "sub"
+        | Multiply -> "mult"
+        | Concat -> "concat"
+        | Equals -> "eq"
+        | NotEquals -> "ne"
+        | LessThan -> "lt"
+        | LessThanEq -> "le"
+        | GreaterThan -> "gt"
+        | GreaterThanEq -> "ge"
+        | Match -> (if type_of v = brawn_type then "match" else "match_regex")
+        | NonMatch -> (if type_of v = brawn_type then "not_match" else "non_match_regex") in
+    build_runtime_call name [|u; v|]
 
 let codegen_unary op u =
-  let helper name = build_call_from_runtime name [|u|] builder in
-  match op with
-  | Negative -> helper "brawn_neg"
-  | Positive -> u (* just identity? *)
-  | Not -> helper "brawn_not"
+    let name = match op with
+        | Negative -> "neg"
+        | Positive -> "pos"
+        | Not -> "not" in
+    build_runtime_call name [|u|]
+
+let rec concat_array_index = function
+    | [] -> raise (CodeGenError "brawn: invalid subscript expression.")
+    | [e] -> e
+    | (e :: es) -> let subsep = LValue (IdentVal (Identifier "SUBSEP")) in
+                   BinaryOp (Concat, e, BinaryOp (Concat, subsep, concat_array_index es))
 
 let get_op_from_updateop = function
   | PowAssign -> Pow
@@ -88,25 +91,40 @@ let rec codegen_expr = function
   | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
   | Getline None -> unimplemented
   | Getline (Some l) -> unimplemented
-  | FuncCall (name, args) -> unimplemented
+  | FuncCall (name, args) -> codegen_func_call name args
   | Ternary (u, v, w) ->
       let u' = codegen_expr u in
       let v' = codegen_expr v in
       let w' = codegen_expr w in
-      let cond = build_call_from_runtime "brawn_is_true" [|u'|] builder in
+      let cond = build_runtime_call "is_true" [|u'|] in
       build_select cond v' w' "ternary_temp" builder
-  | Member (exprs, name) -> unimplemented
+  | Member (es, name) ->
+      let e' = codegen_expr (concat_array_index es) in
+      build_runtime_call "member" [|e'; lookup_variable name|]
   | Postfix (Incr, l) -> unimplemented
-  | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.0))))
   | Postfix (Decr, l) -> unimplemented
-  | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.0))))
-  | LValue l -> unimplemented
+  | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.))))
+  | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.))))
+  | LValue (IdentVal i) -> build_load (lookup_variable i) "load_temp" builder
+  | LValue (ArrayVal (i, es)) ->
+      let a' = lookup_variable i in
+      let l' = codegen_expr (concat_array_index es) in
+      build_runtime_call "index_array" [|a'; l'|]
+  | LValue (Dollar e) ->
+      let l' = codegen_expr e in
+      build_runtime_call "index_array" [|dollar_value; l'|]
   | Assignment (IdentVal i, u) ->
       let u' = codegen_expr u in
-      build_store (lookup_value i) u' builder
-  | Assignment (ArrayIndex (i, es), u) ->
-      let l' = codegen_expr (LValue l) in let u' = codegen_expr u in
-      build_call_from_runtime "brawn_assign" [|l'; u'|] builder
+      build_store (lookup_variable i) u' builder
+  | Assignment (ArrayVal (i, es), u) ->
+      let a' = lookup_variable i in
+      let l' = codegen_expr (concat_array_index es) in
+      let u' = codegen_expr u in
+      build_runtime_call "update_array" [|a'; l'; u'|]
+  | Assignment (Dollar e, u) ->
+      let l' = codegen_expr e in
+      let u' = codegen_expr u in
+      build_runtime_call "update_array" [|dollar_value; l'; u'|]
   | Literal l -> if Hashtbl.mem global_constants l
                  then Hashtbl.find global_constants l
                  else raise (CodeGenError "brawn: literal constant not found.")
