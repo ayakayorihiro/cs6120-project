@@ -151,6 +151,7 @@ and codegen_expr = function
 
 let rec codegen_ifthenelse guard then_stmt else_stmt =
   
+  (* This is what we'll make our decision on later on *)
   let cond = build_runtime_call "is_true" [|codegen_expr guard|] in
 
   let start_bb = insertion_block builder in
@@ -161,7 +162,7 @@ let rec codegen_ifthenelse guard then_stmt else_stmt =
   position_at_end then_bb builder;
   let then_val = codegen_stmt then_stmt in
 
-  (* Codegen of 'then' can change the current block, update then_bb for the phi. 
+  (* Codegen of 'then' can change the current block, so we update then_bb for phi. 
    * We create a new name because one is used for the phi node, and the
    * other is used for the conditional branch. *)
   let new_then_bb = insertion_block builder in
@@ -170,7 +171,7 @@ let rec codegen_ifthenelse guard then_stmt else_stmt =
   position_at_end else_bb builder;
   let else_val = codegen_stmt else_stmt in
 
-  (* Codegen of 'else' can change the current block, update else_bb for the phi. *)
+  (* Codegen of 'else' can change the current block, so we update else_bb for phi. *)
   let new_else_bb = insertion_block builder in
   (* Emit merge block. *)
   let merge_bb = append_block context "ifcont" the_function in
@@ -190,13 +191,37 @@ let rec codegen_ifthenelse guard then_stmt else_stmt =
   position_at_end merge_bb builder;
   phi
 
+and codegen_for init guard_opt update body =
+  (* Emit the start code first *)
+  (* let start_val = codegen_stmt init in
+
+  (* Make the new basic block for the loop header, inserting after current block. *)
+  let preheader_bb = insertion_block builder in
+  let the_function = block_parent preheader_bb in
+  let loop_bb = append_block context "loop" the_function in
+
+  (* Insert an explicit fall through from the current block to the loop_bb. *)
+  ignore (build_br loop_bb builder);
+
+  (* Start insertion in loop_bb. *)
+  position_at_end loop_bb builder;
+
+  (* Start the PHI node with an entry for start. *)
+  let variable = build_phi [(start_val, preheader_bb)] "tmp" builder in *)
+
+  (* hmm let's do this together carefully *)
+  unimplemented
+
 and codegen_stmt stmt =
   match stmt with
   | If (guard, then_stmt, Some else_stmt) -> codegen_ifthenelse guard then_stmt else_stmt
   | If (guard, then_stmt, None) -> codegen_stmt (If (guard, then_stmt, Some Skip))
   | While (guard, body) -> unimplemented
   | Do (body, guard) -> unimplemented
-  | For (init_opt, guard_opt, update_opt, body) -> unimplemented
+  | For (Some init, guard_opt, Some update, body) -> codegen_for init guard_opt update body
+  | For (None, guard_opt, Some update, body) -> codegen_for Skip guard_opt update body
+  | For (Some init, guard_opt, None, body) -> codegen_for init guard_opt Skip body
+  | For (None, guard_opt, None, body) -> codegen_for Skip guard_opt Skip body
   | RangedFor (ele, array, body) -> unimplemented
   | Break
   | Continue
