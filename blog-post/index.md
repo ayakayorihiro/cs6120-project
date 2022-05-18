@@ -33,7 +33,7 @@ Here's how we do it:
     * issue straightforward calls to the `OCaml`-to-`LLVM` module
     * issue `extern` calls to the runtime module created previously
     * make basic blocks and design control flow
-4. TK
+4. TK: gotta do it first
 
 ## Curiosities of AWK
 
@@ -44,6 +44,10 @@ Here's how we do it:
 
 # Evaluation
 
+While we initially proposed to benchmark our results against other implementations of LLVM, our primary focus has become correctness. 
+
+TK: selection criteria
+TK: Alcotest? other test-management suite?
 
 # References
 
@@ -51,3 +55,4 @@ Here's how we do it:
 2. An OCaml module for generating LLVM IR: https://llvm.moe/
 3. Menhir: http://gallium.inria.fr/~fpottier/menhir/
 4. The AWK specification: https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html
+5. Benchmarks obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md and https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154
