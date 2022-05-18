@@ -88,16 +88,16 @@ let rec codegen_expr = function
       build_select cond v' w' "ternary_temp" builder
   | Member (exprs, name) -> unimplemented
   | Postfix (Incr, l) (* treating these the same for now *)
-  | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Number 1.0))) 
+  | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.0)))) 
   | Postfix (Decr, l)
-  | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Number 1.0)))
+  | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.0))))
   | LValue l -> unimplemented
   | Assignment (l, u) ->
       let l' = codegen_expr (LValue l) in let u' = codegen_expr u in 
       build_call_from_runtime "brawn_assign" [|l'; u'|] builder
-  | Regexp str -> unimplemented
-  | Number f -> const_float brawn_type f
-  | String str -> const_stringz context str
+  | Literal (Regexp str) -> unimplemented
+  | Literal (Number f) -> const_float brawn_type f
+  | Literal (String str) -> const_stringz context str
 
 let rec codegen_stmt stmt = 
   match stmt with    
