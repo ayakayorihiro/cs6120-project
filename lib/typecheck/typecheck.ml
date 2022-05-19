@@ -93,7 +93,7 @@ and visit_stmt ig loop func = function
     | Break -> if not loop then raise (TypeCheckError "brawn: break outside of loop.") else ()
     | Continue -> if not loop then raise (TypeCheckError "brawn: continue outside of loop.") else ()
 
-let visit_func (Function (_, args, s)) = Option.iter (visit_stmt args false true) s
+let visit_func (Function (_, args, s)) = visit_stmt args false true s
 
 let record_func (Function (f, args, _)) =
     if Hashtbl.mem functions f

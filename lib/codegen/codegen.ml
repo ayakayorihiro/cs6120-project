@@ -48,7 +48,7 @@ let lookup_constant literal =
 (* Declare all runtime functions. *)
 let build_runtime_call name args =
     let func = Option.get (lookup_function ("brawn_" ^ name) runtime_module) in
-    build_call func args ("call_temp") builder
+    build_call func args "call_temp" builder
 
 (* todo eventually remove *)
 let unimplemented = raise (CodeGenError "brawn: unimplemented.")
@@ -214,7 +214,7 @@ and codegen_while c s =
 
     (* build body block *)
     position_at_end bb builder;
-    codegen_stmt mb hb s;
+    codegen_stmt (Some mb) (Some hb) s;
     ignore (build_br hb builder);
 
     (* position at the merge block *)
@@ -232,7 +232,7 @@ and codegen_for is c us s =
 
     (* build the preheader *)
     position_at_end curr builder;
-    codegen_stmt mb hb is;
+    codegen_stmt (Some mb) (Some hb) is;
     ignore (build_br hb builder);
 
     (* condition to perform jump with *)
@@ -242,8 +242,8 @@ and codegen_for is c us s =
 
     (* build body block *)
     position_at_end bb builder;
-    codegen_stmt mb hb s;
-    codegen_stmt mb hb us;
+    codegen_stmt (Some mb) (Some hb) s;
+    codegen_stmt (Some mb) (Some hb) us;
     ignore (build_br hb builder);
 
     (* position at the merge block *)
@@ -277,7 +277,7 @@ and codegen_range e a s =
     (* build body block *)
     position_at_end bb builder;
     ignore (build_store e' v' builder);
-    codegen_stmt mb hb s;
+    codegen_stmt (Some mb) (Some hb) s;
     ignore (build_br hb builder);
 
     (* position at the merge block *)
@@ -294,8 +294,8 @@ and codegen_stmt eb cb = function
         let us' = Option.value us ~default:Skip in
         codegen_for is' c' us' s
     | RangedFor (e, a, s) -> codegen_range e a s
-    | Break -> ignore (build_br eb builder)
-    | Continue -> ignore (build_br cb builder)
+    | Break -> ignore (build_br (Option.get eb) builder)
+    | Continue -> ignore (build_br (Option.get cb) builder)
     | Next -> ignore (build_runtime_call "next" [||])
     | Exit (Some e) -> ignore (build_runtime_call "exit" [|codegen_expr e|])
     | Exit None -> ignore (build_runtime_call "exit" [|brawn_null|])
@@ -314,39 +314,45 @@ and codegen_stmt eb cb = function
         List.iter (codegen_stmt eb cb) stmts
     | Skip -> ()
 
-let codegen_action = function
-  | Action (None, None) -> raise (CodeGenError "brawn: action with no pattern or statement.")
-  | Action (None, Some stmt) -> unimplemented
-  | Action (Some patt, None) -> unimplemented
-  | Action (Some patt, Some stmt) -> unimplemented
-
 let codegen_func_proto name num_args =
-  let args_types = Array.make num_args brawn_type in
-  let ft = function_type brawn_type args_types in
-  match lookup_function name program_module with
-  | None -> declare_function name ft program_module
-  | Some _ -> raise (CodeGenError "redefinition of function")
-  (* I've simplified this compared to the guide. Redefinition is never allowed. *)
+    let args_types = Array.make num_args brawn_type in
+    let ft = function_type brawn_type args_types in
+    declare_function name ft program_module
+
+let codegen_arg (Identifier arg) =
+    let v = build_alloca brawn_type arg builder in
+    Hashtbl.add local_variables (Identifier arg) v
 
 let codegen_func (Function (Identifier name, args, body)) =
-  (* the guide says to clear out the named_values hashtable, I'm skipping that. *)
-  let the_function = codegen_func_proto name (List.length args) in
-  match body with
-  | None -> the_function (* it was just a prototype. we're done. *)
-  | Some body' -> (* it had a body. add it. *)
-      let bb = append_block context "entry" the_function in
-      position_at_end bb builder;
-      try
-        let ret_val = codegen_stmt body' in
-        let _ = build_ret ret_val builder in
-        Llvm_analysis.assert_valid_function the_function;
-        the_function
-      with e ->
-        delete_function the_function;
+    (* clear the local variable tables *)
+    Hashtbl.clear local_variables;
+    let fn = codegen_func_proto name (List.length args) in
+    let bb = append_block context "entry" fn in
+    position_at_end bb builder;
+    try
+        (* repopulate the local variable tables *)
+        List.iter codegen_arg args;
+        codegen_stmt None None body;
+        Llvm_analysis.assert_valid_function fn;
+        Hashtbl.add global_functions (Identifier name) fn
+    with e ->
+        delete_function fn;
         raise e
 
-(* TODO: this should be fleshed out further to take care of control flow etc *)
-let codegen_program ((Program (funcs, actions)) : program) =
-  ignore (List.map codegen_func funcs);
-  ignore (List.map codegen_action actions);
-  dump_module program_module   (* more sensible return value? *)
+let end_action = function
+    | Action (Some End, Some s) -> [s]
+    | _ -> []
+let begin_action = function
+    | Action (Some Begin, Some s) -> [s]
+    | _ -> []
+
+let codegen_begin_end acs =
+    let eb = Block (List.concat_map end_action acs) in
+    codegen_func (Function (Identifier "brawn_end", [], eb));
+    let bb = Block (List.concat_map begin_action acs) in
+    codegen_func (Function (Identifier "brawn_begin", [], bb))
+
+let codegen_program (Program (fs, acs)) =
+    List.iter codegen_func fs;
+    codegen_begin_end acs;
+    dump_module program_module

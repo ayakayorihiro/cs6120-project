@@ -102,7 +102,7 @@ type statement =
 [@@deriving show]
 
 (* User-defined functions in Brawn *)
-type func = Function of ident * ident list * statement option
+type func = Function of ident * ident list * statement
 [@@deriving show]
 
 (* Pattern-action pair *)

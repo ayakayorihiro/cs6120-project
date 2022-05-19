@@ -73,7 +73,7 @@ item:
      | p=pattern { Action (Some p, None) }
      | p=pattern a=statement { Action (Some p, Some a) }
 
-function_item: Function n=identifier LPAREN args=param_list_opt RPAREN s=statement { Function (n, args, Some s) }
+function_item: Function n=identifier LPAREN args=param_list_opt RPAREN s=statement { Function (n, args, s) }
 
 param_list_opt: ls=separated_list(COMMA, identifier) { ls }
 
