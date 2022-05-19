@@ -17,6 +17,7 @@
 
 let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']
+let comment = '#' [^'\n']* '\n'
 let whitespace = [' ' '\t']
 let newline = '\n'
 let ident = alpha (alpha | digit | '_')*
@@ -26,6 +27,7 @@ let number = pm?digit+'.'?digit*(['e' 'E']pm?digit+)?
 rule token = parse
     | eof    { debug_print "EOF"; EOF }
     | "EOF" { debug_print "alt-EOF" ; EOF}
+    | comment              { next_line lexbuf; token lexbuf }
     | [' ' '\t'] { debug_print "w" ; token lexbuf } (* skip whitespace *)
     | newline              { next_line lexbuf; token lexbuf }
     | "BEGIN" { debug_print "BEGIN" ; Begin }
