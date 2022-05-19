@@ -20,7 +20,7 @@ let alpha = ['a'-'z' 'A'-'Z']
 let comment = '#' [^'\n']* '\n'
 let whitespace = [' ' '\t']
 let newline = '\n'
-let ident = alpha (alpha | digit | '_')*
+let ident = ( alpha | '_' ) (alpha | digit | '_')*
 let pm = ['+' '-']
 let number = pm?digit+'.'?digit*(['e' 'E']pm?digit+)?
 
