@@ -1,1 +1,2 @@
 benchmarks obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md
+https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154
