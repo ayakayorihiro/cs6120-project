@@ -9,23 +9,6 @@
 # May 1993
 
 
-BEGIN    \
-{
-    # Initialize table of month lengths
-    _tm_months[0,1] = _tm_months[1,1] = 31
-    _tm_months[0,2] = 28; _tm_months[1,2] = 29
-    _tm_months[0,3] = _tm_months[1,3] = 31
-    _tm_months[0,4] = _tm_months[1,4] = 30
-    _tm_months[0,5] = _tm_months[1,5] = 31
-    _tm_months[0,6] = _tm_months[1,6] = 30
-    _tm_months[0,7] = _tm_months[1,7] = 31
-    _tm_months[0,8] = _tm_months[1,8] = 31
-    _tm_months[0,9] = _tm_months[1,9] = 30
-    _tm_months[0,10] = _tm_months[1,10] = 31
-    _tm_months[0,11] = _tm_months[1,11] = 30
-    _tm_months[0,12] = _tm_months[1,12] = 31
-}
-
 # decide if a year is a leap year
 function _tm_isleap(year,    ret)
 {
@@ -99,6 +82,23 @@ function mmktime(str,    res1, res2, a, b, i, j, t, diff)
     res1 += diff
 
     return res1
+}
+
+BEGIN
+{
+    # Initialize table of month lengths
+    _tm_months[0,1] = _tm_months[1,1] = 31
+    _tm_months[0,2] = 28; _tm_months[1,2] = 29
+    _tm_months[0,3] = _tm_months[1,3] = 31
+    _tm_months[0,4] = _tm_months[1,4] = 30
+    _tm_months[0,5] = _tm_months[1,5] = 31
+    _tm_months[0,6] = _tm_months[1,6] = 30
+    _tm_months[0,7] = _tm_months[1,7] = 31
+    _tm_months[0,8] = _tm_months[1,8] = 31
+    _tm_months[0,9] = _tm_months[1,9] = 30
+    _tm_months[0,10] = _tm_months[1,10] = 31
+    _tm_months[0,11] = _tm_months[1,11] = 30
+    _tm_months[0,12] = _tm_months[1,12] = 31
 }
 
 BEGIN  {
