@@ -44,9 +44,9 @@
 %left     In
 %nonassoc NO_MATCH SQUIGGLE
 %nonassoc GE GT EQ NE LE LT
-%left     MOD DIV MULT
 %left     CONCAT
 %nonassoc PLUS MINUS
+%left     MOD DIV MULT
 %nonassoc BANG
 %right    POW
 %nonassoc INCR DECR
