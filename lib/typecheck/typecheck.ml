@@ -71,11 +71,13 @@ and visit_stmt ig loop func = function
     | While (e, s)
     | Do (s, e) -> visit_stmt ig true func s;
                    visit_expr ig e
-    | For (is, e, us, s) -> Option.iter (visit_stmt ig true func) is;
+    | For (is, e, us, s) -> Option.iter (visit_stmt ig false func) is;
                             Option.iter (visit_expr ig) e;
-                            Option.iter (visit_stmt ig true func) us;
+                            Option.iter (visit_stmt ig false func) us;
                             visit_stmt ig true func s
-    | RangedFor (_, _, s) -> visit_stmt ig true func s
+    | RangedFor (e, a, s) -> record_global ig e;
+                             record_global ig a;
+                             visit_stmt ig true func s
     | Exit (Some e)
     | Expression e -> visit_expr ig e
     | Return e -> if not func
@@ -93,7 +95,10 @@ and visit_stmt ig loop func = function
 
 let visit_func (Function (_, args, s)) = Option.iter (visit_stmt args false true) s
 
-let record_func (Function (f, args, _)) = Hashtbl.add functions f (List.length args)
+let record_func (Function (f, args, _)) =
+    if Hashtbl.mem functions f
+    then raise (TypeCheckError "brawn: function cannot be redefined.")
+    else Hashtbl.add functions f (List.length args)
 
 let visit_action (Action (p, s)) =
     Option.iter visit_pattern p;

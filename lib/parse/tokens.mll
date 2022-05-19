@@ -1,19 +1,19 @@
-{ 
+{
     open Grammar
     open Lexing
-    
+
     (* NOTE: modify the below based on whether you'd like to see what tokens are generatedb *)
     let debug_print _ = (* print_endline content *) ()
-    
+
     exception SyntaxError of string
-  
+
     let next_line lexbuf =
         let pos = lexbuf.lex_curr_p in
         lexbuf.lex_curr_p <-
           { pos with pos_bol = lexbuf.lex_curr_pos;
                      pos_lnum = pos.pos_lnum + 1
           }
-} 
+}
 
 let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']

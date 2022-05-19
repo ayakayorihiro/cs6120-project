@@ -29,7 +29,7 @@
 
 /* Basic tokens for literals and identifiers. */
 %token <string> STRING
-%token <string> ERE 
+%token <string> ERE
 %token <float>  NUMBER
 %token <string> NAME
 
@@ -129,7 +129,7 @@ expr:
     | LPAREN e=expr RPAREN { e }
     | o=un_op e=expr { UnaryOp (o, e) }
     | u=expr o=bin_op v=expr { BinaryOp (o, u, v) }
-    | l=lvalue o=update_op e=expr { UpdateOp (o, l, e) } 
+    | l=lvalue o=update_op e=expr { UpdateOp (o, l, e) }
     | l=lvalue o=incr_op { Postfix (o, l) }
     | o=incr_op l=lvalue { Prefix (o, l) }
     | LPAREN es=expr_list RPAREN In n=identifier { Member (es, n) }

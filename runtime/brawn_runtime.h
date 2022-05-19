@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <regex>
 #include <functional>
+#include <exception>
 
 #include "deps/gc/include/gc_cpp.h"
 #include "deps/gc/include/gc_allocator.h"
@@ -43,6 +44,15 @@ typedef std::unordered_map
 typedef brawn_array* brawn_array_t;
 
 /**
+ * This struct encapsulates an
+ * iterator for ranged for.
+ */
+struct brawn_iterator {
+    brawn_array*          array;    /* The array being iterated */
+    brawn_array::iterator iterator; /* The iterator */
+};
+
+/**
  * Type tage for each brawn type.
  */
 enum brawn_type_t {
@@ -69,6 +79,37 @@ struct brawn_value {
     brawn_value(): tag(UNINITIALISED) {}
 
 };
+
+/** Exception for brawn `next` calls. */
+class BrawnNextException : std::exception {};
+
+/** Exception for brawn `exit` calls. */
+class BrawnExitException : std::exception {
+
+public:
+
+    /**
+     * Create a `exit` exception.
+     *
+     * @param value the value for the excpetion
+     */
+    BrawnExitException(brawn_value_t value): value(value) {}
+
+    brawn_value_t value;
+
+};
+
+/**
+ * Do a brawn `exit` call.
+ *
+ * @param value the value to exit with
+ */
+void brawn_exit(brawn_value_t value);
+
+/**
+ * Do a brawn `next` call.
+ */
+void brawn_next();
 
 /**
  * Return an uninitialised brawn value.
@@ -99,15 +140,6 @@ brawn_value_t brawn_from_number(double number);
  * @return a brawn value containing that C string
  */
 brawn_value_t brawn_from_const_string(const char* string);
-
-/**
- * Initialise a brawn value from a string.
- *
- * @param string the string
- *
- * @return a brawn value containing that string
- */
-brawn_value_t brawn_from_string(std::string string);
 
 /**
  * Initialise a regular expression from a string.
@@ -165,6 +197,24 @@ void brawn_delete_array(brawn_value_t array, brawn_value_t index);
  * @return the value at the index
  */
 brawn_value_t brawn_update_array(brawn_value_t array, brawn_value_t index, brawn_value_t value);
+
+/**
+ * Create an iterator for the given brawn array.
+ *
+ * @param array the given array
+ *
+ * @return the iterator for the array
+ */
+brawn_iterator* brawn_init_iterator(brawn_value_t array);
+
+/**
+ * Return the next key for the given iterator.
+ *
+ * @param iterator the given iterator
+ *
+ * @return the next key
+ */
+brawn_value_t brawn_next_iterator(brawn_iterator* iterator);
 
 /**
  * Perform a logical not on the brawn value.
@@ -465,14 +515,6 @@ brawn_value_t brawn_int(brawn_value_t x);
  * @return the generated random number
  */
 brawn_value_t brawn_rand();
-
-/**
- * Brawn inbuild function: srand. Seed the
- * RNG with the current time of day.
- *
- * @return the previous seed
- */
-brawn_value_t brawn_srand_time();
 
 /**
  * Brawn inbuild function: srand.

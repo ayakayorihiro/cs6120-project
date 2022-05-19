@@ -28,6 +28,10 @@
         "brawn: attempt to use scalar in an array context.", \
         value->tag == UNINITIALISED || value->tag == ARRAY   \
     );                                                       \
+    if (value->tag == UNINITIALISED) {                       \
+        value->array_val = new brawn_array;                  \
+        value->tag = ARRAY;                                  \
+    }                                                        \
 }                                                            \
 
 namespace brawn {
@@ -35,26 +39,54 @@ namespace brawn {
 /** Create some static constant brawn values. */
 static brawn_value_t one = brawn_from_number(1);
 static brawn_value_t zero = brawn_from_number(0);
-static brawn_value_t empty_string = brawn_from_string("");
+static brawn_value_t empty_string = brawn_from_const_string("");
 
 /* Create builtin variables. */
 brawn_value_t ARGC = brawn_from_number(0);
 brawn_value_t ARGV = brawn_init_array();
-brawn_value_t CONVFMT = brawn_from_string("%.6g");
+brawn_value_t CONVFMT = brawn_from_const_string("%.6g");
 brawn_value_t ENVIRON = brawn_init_array();
-brawn_value_t FILENAME = brawn_from_string("");
+brawn_value_t FILENAME = brawn_from_const_string("");
 brawn_value_t FNR = brawn_from_number(0);
-brawn_value_t FS = brawn_from_string(" ");
+brawn_value_t FS = brawn_from_const_string(" ");
 brawn_value_t NF = brawn_from_number(0);
 brawn_value_t NR = brawn_from_number(0);
-brawn_value_t OFMT = brawn_from_string("%.6g");
-brawn_value_t OFS = brawn_from_string(" ");
-brawn_value_t ORS = brawn_from_string("\n");
+brawn_value_t OFMT = brawn_from_const_string("%.6g");
+brawn_value_t OFS = brawn_from_const_string(" ");
+brawn_value_t ORS = brawn_from_const_string("\n");
 brawn_value_t RLENGTH = brawn_from_number(0);
-brawn_value_t RS = brawn_from_string("\n");
+brawn_value_t RS = brawn_from_const_string("\n");
 brawn_value_t RSTART = brawn_from_number(0);
-brawn_value_t SUBSEP = brawn_from_string("\034");
+brawn_value_t SUBSEP = brawn_from_const_string("\034");
 brawn_value_t DOLLAR = brawn_init_array();
+
+/**
+ * Initialise a brawn value from a string.
+ *
+ * @param string the string
+ *
+ * @return a brawn value containing that string
+ */
+static inline brawn_value_t brawn_from_string(brawn_string&& string) {
+    auto value = new brawn_value;
+    value->string_val = new brawn_string(std::move(string));
+    value->tag = STRING;
+    return value;
+}
+
+/**
+ * Initialise a brawn value from a string.
+ *
+ * @param string the string
+ *
+ * @return a brawn value containing that string
+ */
+static inline brawn_value_t brawn_from_string_copy(brawn_string string) {
+    auto value = new brawn_value;
+    value->string_val = new brawn_string(std::move(string));
+    value->tag = STRING;
+    return value;
+}
 
 /**
  * Return a number from the given brawn value.
@@ -141,6 +173,14 @@ static inline brawn_value_t boolean(bool value) {
     return value ? one : zero;
 }
 
+void brawn_exit(brawn_value_t value) {
+    throw BrawnExitException(value);
+}
+
+void brawn_next() {
+    throw BrawnNextException();
+}
+
 brawn_value_t brawn_init() {
     return new brawn_value;
 }
@@ -166,12 +206,7 @@ brawn_value_t brawn_from_const_string(const char* string) {
     return value;
 }
 
-brawn_value_t brawn_from_string(brawn_string&& string) {
-    auto value = new brawn_value;
-    value->string_val = new brawn_string(std::move(string));
-    value->tag = STRING;
-    return value;
-}
+
 
 std::regex* brawn_init_regex(const char* pattern) {
     return new std::regex(pattern);
@@ -189,17 +224,10 @@ brawn_value_t brawn_assign(brawn_value_t lvalue, brawn_value_t value) {
 }
 
 brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index) {
-    BRAWN_ARRAY(array);
-    BRAWN_SCALAR(index);
-
-    // create an array if this value is uninitialised
-    if (array->tag == UNINITIALISED) {
-        array->array_val = new brawn_array;
-        array->tag = ARRAY;
-    }
-
     // get the value at that index if it exists
     // otherwise, create one
+    BRAWN_ARRAY(array);
+    BRAWN_SCALAR(index);
     auto key = get_string(index);
     auto result = array->array_val->find(key);
     if (result == array->array_val->end()) {
@@ -210,35 +238,40 @@ brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index) {
 }
 
 void brawn_delete_array(brawn_value_t array, brawn_value_t index) {
+    // delete the value at that index
     BRAWN_ARRAY(array);
     BRAWN_SCALAR(index);
-
-    // create an array if this value is uninitialised
-    if (array->tag == UNINITIALISED) {
-        array->array_val = new brawn_array;
-        array->tag = ARRAY;
-    }
-
-    // set the value at that index
     auto key = get_string(index);
     array->array_val->erase(key);
 }
 
 brawn_value_t brawn_update_array(brawn_value_t array, brawn_value_t index, brawn_value_t value) {
+    // set the value at that index
     BRAWN_ARRAY(array);
     BRAWN_SCALAR(index);
     BRAWN_SCALAR(value);
-
-    // create an array if this value is uninitialised
-    if (array->tag == UNINITIALISED) {
-        array->array_val = new brawn_array;
-        array->tag = ARRAY;
-    }
-
-    // set the value at that index
     auto key = get_string(index);
     (*array->array_val)[key] = value;
     return value;
+}
+
+brawn_iterator* brawn_init_iterator(brawn_value_t array) {
+    // return a new iterator
+    BRAWN_ARRAY(array);
+    return new brawn_iterator { array->array_val, array->array_val->begin() };
+}
+
+brawn_value_t brawn_next_iterator(brawn_iterator* iterator) {
+    // get the next value in the iterator
+    BRAWN_VALID(iterator);
+    BRAWN_VALID(iterator->array);
+    if (iterator->iterator == iterator->array->end()) {
+        return nullptr;
+    } else {
+        auto it = iterator->iterator;
+        auto key = it++->first;
+        return brawn_from_string_copy(key);
+    }
 }
 
 brawn_value_t brawn_not(brawn_value_t value) {
@@ -422,24 +455,25 @@ brawn_value_t brawn_rand() {
 /** Seed for the brawn runtime. */
 static brawn_value_t curr_seed = brawn_from_number(1);
 
-brawn_value_t brawn_srand_time() {
-    // seed with the current time and return the
-    // previous seed value
-    auto previous_seed = curr_seed;
-    auto now_seed = std::time(0);
-    curr_seed = brawn_from_number(now_seed);
-    std::srand(now_seed);
-    return previous_seed;
-}
-
 brawn_value_t brawn_srand(brawn_value_t seed) {
-    // seed with the current time and return the
-    // previous seed value
-    BRAWN_SCALAR(seed);
+    // store the previous seed
     auto previous_seed = curr_seed;
-    auto now_seed = get_number(seed);
-    curr_seed = brawn_from_number(now_seed);
-    std::srand(now_seed);
+
+    // if there is no argument given then
+    // seed with the current time otherwise
+    // seed the RNG with the given value
+    // and return the previous seed
+    if (seed == nullptr) {
+        auto now_seed = std::time(0);
+        curr_seed = brawn_from_number(now_seed);
+        std::srand(now_seed);
+    }
+    else {
+        BRAWN_SCALAR(seed);
+        auto now_seed = get_number(seed);
+        curr_seed = brawn_from_number(now_seed);
+        std::srand(now_seed);
+    }
     return previous_seed;
 }
 
