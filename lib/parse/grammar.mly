@@ -38,15 +38,15 @@
 %right    SUB_ASSIGN ADD_ASSIGN
 %right    DIV_ASSIGN MUL_ASSIGN MOD_ASSIGN
 %right    POW_ASSIGN
-%right    COLON
+%right    COLON QMARK
 %left     OR
 %left     AND
 %left     In
 %nonassoc NO_MATCH SQUIGGLE
 %nonassoc GE GT EQ NE LE LT
-%left     MOD DIV MULT
 %left     CONCAT
 %nonassoc PLUS MINUS
+%left     MOD DIV MULT
 %nonassoc BANG
 %right    POW
 %nonassoc INCR DECR

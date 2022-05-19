@@ -82,6 +82,7 @@ rule token = parse
     | '~' { debug_print "SQUIGGLE";SQUIGGLE }
     | '$' { debug_print "DOLLAR";DOLLAR }
     | '=' { debug_print "ASSIGN";ASSIGN }
+    | "getline" { debug_print "GETLINE"; GETLINE }
     | number as n { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
     | '"'         { read_string (Buffer.create 256) lexbuf }
     | '/'         { read_regex (Buffer.create 256) lexbuf }
