@@ -28,8 +28,8 @@ let _ =
     Typecheck.visit_program program;
     Llvm.set_target_triple (Llvm.target_triple Codegen.runtime_module) Codegen.program_module;
     Llvm.set_data_layout (Llvm.data_layout Codegen.runtime_module) Codegen.program_module;
+    Codegen.codegen_globals ();
+    Codegen.codegen_literals ();
     Codegen.codegen_runtime_funcs ();
-    Hashtbl.iter Codegen.codegen_global Typecheck.globals;
-    Hashtbl.iter Codegen.codegen_literal Typecheck.constants;
     Codegen.codegen_program program;
     Llvm.print_module output Codegen.program_module;

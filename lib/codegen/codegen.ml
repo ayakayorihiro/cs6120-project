@@ -1,6 +1,7 @@
 open Llvm
 open Brawn_ast.Ast
 open Brawn_typecheck.Builtins
+open Brawn_typecheck.Typecheck
 
 exception CodeGenError of string
 
@@ -123,12 +124,18 @@ and codegen_lvalue_update u = function
         build_runtime_call "index_array" [|v'; l'|]
 
 and codegen_expr = function
-    | BinaryOp (Match, u, Literal (Regexp r)) -> codegen_binary Match (codegen_expr u) (lookup_constant (Regexp r))
-    | BinaryOp (NonMatch, u, Literal (Regexp r)) -> codegen_binary NonMatch (codegen_expr u) (lookup_constant (Regexp r))
+    | BinaryOp (Match, u, Literal (Regexp r)) ->
+        let l = lookup_constant (Regexp r) in
+        let l' = build_load l "load_temp" builder in
+        codegen_binary Match (codegen_expr u) l'
+    | BinaryOp (NonMatch, u, Literal (Regexp r)) ->
+        let l = lookup_constant (Regexp r) in
+        let l' = build_load l "load_temp" builder in
+        codegen_binary NonMatch (codegen_expr u) l'
     | BinaryOp (op, u, v) -> codegen_binary op (codegen_expr u) (codegen_expr v)
     | UnaryOp (op, u) -> codegen_unary op (codegen_expr u)
     | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
-    | Getline None -> codegen_expr (Getline (Some (Dollar (Literal (Number 0.)))))
+    | Getline None -> codegen_expr (Getline (Some (Dollar (Literal (String "0")))))
     | Getline (Some l) -> build_runtime_call "getline" [|codegen_lvalue_get l|]
     | FuncCall (Identifier fn, ag) -> codegen_func_call fn ag
     | Ternary (u, v, w) ->
@@ -137,29 +144,29 @@ and codegen_expr = function
         let w' = codegen_expr w in
         let cond = build_runtime_call "is_true" [|u'|] in
         build_select cond v' w' "ternary_temp" builder
-    | Member (es, Identifier i) ->
+    | Member (es, l) ->
         let e' = codegen_expr (concat_array_index es) in
-        build_runtime_call "member" [|e'; lookup_variable i|]
+        let a' = codegen_lvalue_get (IdentVal l) in
+        build_runtime_call "member" [|e'; a'|]
     | Postfix (Incr, l) ->
         let o' = codegen_lvalue_get l in
-        let n' = build_runtime_call "add" [|o'; lookup_constant (Number 1.)|] in
+        let n' = build_runtime_call "add" [|o'; codegen_expr (Literal (Number 1.))|] in
         ignore (codegen_lvalue_update n' l); o'
     | Postfix (Decr, l) ->
         let o' = codegen_lvalue_get l in
-        let n' = build_runtime_call "add" [|o'; lookup_constant (Number 1.)|] in
+        let n' = build_runtime_call "add" [|o'; codegen_expr (Literal (Number 1.))|] in
         ignore (codegen_lvalue_update n' l); o'
     | Prefix (Incr, l) -> codegen_expr (Assignment (l, BinaryOp (Plus, LValue l, Literal (Number 1.))))
     | Prefix (Decr, l) -> codegen_expr (Assignment (l, BinaryOp (Subtract, LValue l, Literal (Number 1.))))
     | LValue l -> codegen_lvalue_get l
     | Assignment (l, u) ->
         let u' = codegen_expr u in
-        codegen_lvalue_update u' l
-    | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, LValue (Dollar (Literal (Number 0.))), Literal (Regexp r)))
+        ignore (codegen_lvalue_update u' l);
+        u'
+    | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, LValue (Dollar (Literal (String "0"))), Literal (Regexp r)))
     | Literal l ->
         let v = lookup_constant l in
-        let v' = build_load v "load_temp" builder in
-        print_endline (string_of_lltype (type_of v'));
-        v'
+        build_load v "load_temp" builder
 
 and codegen_missing_args = function
     | 0 -> []
@@ -168,9 +175,9 @@ and codegen_missing_args = function
 and codegen_func_call fn ag =
     let ag' = match (fn, ag) with
         | ("srand", []) -> [brawn_null]
-        | ("length", []) -> [codegen_expr (LValue (Dollar (Literal (Number 0.))))]
+        | ("length", []) -> [codegen_expr (LValue (Dollar (Literal (String "0"))))]
         | ("gsub", [x; y])
-        | ("sub", [x; y]) -> [codegen_expr x; codegen_expr y; codegen_expr (LValue (Dollar (Literal (Number 0.))))]
+        | ("sub", [x; y]) -> [codegen_expr x; codegen_expr y; codegen_expr (LValue (Dollar (Literal (String "0"))))]
         | ("split", [x; y])
         | ("substr", [x; y]) -> [codegen_expr x; codegen_expr y; brawn_null]
         | _ -> List.map codegen_expr ag
@@ -333,9 +340,10 @@ and codegen_stmt eb cb = function
     | Exit None -> ignore (build_runtime_call "exit" [|brawn_null|])
     | Return (Some e) -> let e' = codegen_expr e in ignore (build_ret e' builder)
     | Return None -> ignore (build_ret brawn_null builder)
-    | Delete (Identifier i, es) ->
+    | Delete (a, es) ->
         let e' = codegen_expr (concat_array_index es) in
-        ignore (build_runtime_call "delete_array" [|lookup_variable i; e'|])
+        let a' = codegen_lvalue_get (IdentVal a) in
+        ignore (build_runtime_call "delete_array" [|a'; e'|])
     | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (String "0")))])
     | Print es ->
         let args = Array.of_list (List.map codegen_expr es) in
@@ -369,7 +377,7 @@ let codegen_func (Function (Identifier n, ag, b)) =
         (* repopulate the local variable tables *)
         List.iter codegen_arg ag;
         codegen_stmt None None b;
-        Llvm_analysis.assert_valid_function fn
+        Llvm_analysis.assert_valid_function fn;
     with e ->
         delete_function fn;
         raise e
@@ -380,13 +388,9 @@ let codegen_brawn name b =
     let fn = declare_function ("brawn_" ^ name) (function_type void [||]) program_module in
     let bb = append_block context "entry" fn in
     position_at_end bb builder;
-    try
-        codegen_stmt None None b;
-        ignore (build_ret_void builder);
-        Llvm_analysis.assert_valid_function fn
-    with e ->
-        delete_function fn;
-        raise e
+    codegen_stmt None None b;
+    ignore (build_ret_void builder);
+    Llvm_analysis.assert_valid_function fn
 
 let end_action = function
     | Action (Some End, Some s) -> [s]
@@ -422,6 +426,7 @@ let codegen_literal l _ =
     in
     Hashtbl.add global_constants l v
 
+(* Generate code for all the runtime functions. *)
 let codegen_runtime_funcs () =
     let process f =
         let name = value_name f in
@@ -429,7 +434,16 @@ let codegen_runtime_funcs () =
         ignore (declare_function (value_name f) (element_type (type_of f)) program_module) in
     iter_functions process runtime_module
 
+(* Generate code for the given awk program. *)
 let codegen_program (Program (fs, acs)) =
     List.iter codegen_func_decl fs;
     List.iter codegen_func fs;
-    codegen_begin_end acs;
+    codegen_begin_end acs
+
+(* Generate code for all the global variables. *)
+let codegen_globals () =
+    Hashtbl.iter codegen_global globals
+
+(* Generate code for all the literal constants. *)
+let codegen_literals () =
+    Hashtbl.iter codegen_literal constants
