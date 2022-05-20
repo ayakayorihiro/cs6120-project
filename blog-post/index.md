@@ -53,6 +53,7 @@ For convenience, we restrict ourselves to a (large) subset of `AWK`. Here are th
 
 ## Curiosities of Our Implementation
 1. A lot of the fancy footwork happens at the interface between our built-in library and our codegen'd IR. One of our design choices is to have much of the heavy-lifting to the built-in library. For instance, even the `main()` function---which reads in inut, splits it into lines and then into words, and then runs the `AWK` program on it---lives in the runtime library. 
+2. `AWK` uses the token `/` to indicate both `div` and the beginning/end of a regular expression. This is hard to parse, so in `BRAWN` we begin regular expressions with `/#` and end them with `#/`.
 
 # Evaluation
 
