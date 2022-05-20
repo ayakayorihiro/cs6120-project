@@ -13,7 +13,7 @@ link = "https://ayakayorihiro.github.io"
 
 # Introduction
 
-We present `BRAWN`, the Big Red AWk iNterpreter. Our project is in service of `AWK`, which is a scripting language used to process text in a filter style. We build a new `LLVM` frontend for `AWK`, and then leverage `LLVM`'s backend to generate optimized machine code. 
+We report on `BRAWN`, the Big Red AWk iNterpreter. Our project is in service of `AWK`, which is a scripting language used to process text in a filter style. We build a new `LLVM` frontend for `AWK`, and then leverage `LLVM`'s backend to generate optimized machine code. 
 
 # Implementation
 
@@ -40,18 +40,21 @@ Here's how we do it:
 2. `AWK` is typically interpreted and not compiled
 3. Certain built-in functions can be called with variable number of arguments, and they have somewhat unusual behaviour when this happens. For example, 
     * `length ()` succeeds: it gives the length of the argument $0. 
-    * `a = regex` assignment example... TK
-4. Supporting `AWK`'s syntax of `BEGIN`/`END` blocks requires custom control flow. The same is true of the `next` and `exit` commands
+4. User-defined functions can be called with fewer arguments than they require. The variables that don't have arguments at call time are given default values.
+5. `a = regex` assignment example... TK
+6. Supporting `AWK`'s syntax of `BEGIN`/`END` blocks requires custom control flow. The same is true of the `next` and `exit` commands
 
 ## Points of Divergence (BRAWN vs AWK)
 For convenience, we restrict ourselves to a (large) subset of `AWK`. Here are the points of divergence:
 1. We reduce printing functionality
 2. We do not offer output redirection
 3. We restrict inputs to those coming from the command line
-4. We require that all statement blocks be "terminated" with a `;`
+4. We require that all statement blocks be "terminated" TK
+5. We require that all functions `return`
 
 ## Curiosities of Our Implementation
 1. A lot of the fancy footwork happens at the interface between our built-in library and our codegen'd IR. One of our design choices is to have much of the heavy-lifting to the built-in library. For instance, even the `main()` function---which reads in inut, splits it into lines and then into words, and then runs the `AWK` program on it---lives in the runtime library. 
+2. `AWK` uses the token `/` to indicate both `div` and the beginning/end of a regular expression. This is hard to parse, so in `BRAWN` we begin regular expressions with `/#` and end them with `#/`.
 
 # Evaluation
 
@@ -73,3 +76,4 @@ TK
 3. Menhir: http://gallium.inria.fr/~fpottier/menhir/
 4. The AWK specification: https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html
 5. Benchmarks obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md and https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154
+TK: once the order of these is stable, cite these above
