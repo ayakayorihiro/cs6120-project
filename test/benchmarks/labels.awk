@@ -1,6 +1,5 @@
-# BRAWN_NOTES: modified to remove printfs; the output
-# looks a lot more clumsy as a result but disregarding
-# that for the sake of this project.
+# ARGS: Catch-22.txt
+
 
 # labels.awk
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain

@@ -1,3 +1,4 @@
+# ARGS: dupword_test.txt
 # dupword -- find duplicate words in text
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain
 # December 1991
