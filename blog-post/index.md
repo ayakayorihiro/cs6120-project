@@ -52,18 +52,22 @@ For convenience, we restrict ourselves to a (large) subset of `AWK`. Here are th
 4. We require that all statement blocks be "terminated" TK
 5. We require that all functions `return`
 6. `AWK` uses the token `/` to indicate both `div` and the beginning/end of a regular expression. This is hard to parse, so in `BRAWN` we begin regular expressions with `/#` and end them with `#/`.
+7. `AWK` offers a `bool`-returning membership query of the form `(bird) in birds`. `BRAWN` requires a different style: `[bird] in birds`.
+8. `AWK` offers string concatenation via the syntax `"concat" "these" "strings"`. `BRAWN` requires `"concat" @ "these" @ "strings"`
+9. `AWK` allows functions to be declared anywhere in the program so long as they are outside of blocks. They can be called before they are declared. `BRAWN` requires that all functions be defined before any blocks are
 
 ## Curiosities of Our Implementation
-1. A lot of the fancy footwork happens at the interface between our built-in library and our codegen'd IR. One of our design choices is to have much of the heavy-lifting to the built-in library. For instance, even the `main()` function---which reads in inut, splits it into lines and then into words, and then runs the `AWK` program on it---lives in the runtime library. 
+TK: merge this with the above?
+1. A lot of the fancy footwork happens at the interface between our built-in library and our codegen'd IR. One of our design choices is to have much of the heavy-lifting to the built-in library. For instance, even the `main()` function---which reads in input, splits it into lines and then into words, and then runs the `AWK` program on it---lives in the runtime library. 
 
 
 # Evaluation
 
 ## Correctness
-For a selection of `awk` programs that we can process, we compare our output to that of the standard `AWK` implementation. 
-
-TK: selection criteria
-TK: Turnt? other test-management suite?
+For a selection of `AWK` programs that we can support in `BRAWN`, we compare our output to that of the standard `AWK` implementation. We select a series of `AWK` programs, generally a little more complex than simple one-line commands, from benchmarks previously used by
+* the `AWK`-like language [frawk](https://github.com/ezrosent/frawk)
+* a [user guide](https://www.math.utah.edu/docs/info/gawk_toc.html) for GNU `AWK`
+and convert them by hand into their equivalent `BRAWN` programs. The changes required are minor and are described above. The programs perform operations such as unique sorting, conversion from a date to the number of seconds since the beginning of the epoch, spotting duplicate uses of words, and counting the occurrences of words. We use `turnt` to compare the outputs of `AWK` and `BRAWN`.
 
 ## Benchmark
 For the same programs as above, we provide a brief benchmark against the GNU `AWK` implementation, `gawk`. 
