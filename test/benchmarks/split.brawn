@@ -20,7 +20,7 @@ BEGIN{
         usage()
 
     i = 1
-    if (ARGV[i] ~ /^-[0-9]+$/) {
+    if (ARGV[i] ~ /#^-[0-9]+$#/) {
         count = -ARGV[i]
         ARGV[i] = ""
         i++
