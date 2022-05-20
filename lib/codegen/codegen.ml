@@ -211,12 +211,14 @@ let rec codegen_if eb cb c ts fs =
     (* build true block *)
     position_at_end tb builder;
     codegen_stmt eb cb ts;
-    ignore (build_br mb builder);
+    let tb' = insertion_block builder in
+    if Option.is_none (block_terminator tb') then ignore (build_br mb builder);
 
     (* build false block *)
     position_at_end fb builder;
     codegen_stmt eb cb fs;
-    ignore (build_br mb builder);
+    let fb' = insertion_block builder in
+    if Option.is_none (block_terminator fb') then ignore (build_br mb builder);
 
     (* position at the merge block *)
     position_at_end mb builder;
@@ -243,7 +245,8 @@ and codegen_while c s =
     (* build body block *)
     position_at_end bb builder;
     codegen_stmt (Some mb) (Some hb) s;
-    ignore (build_br hb builder);
+    let bb' = insertion_block builder in
+    if Option.is_none (block_terminator bb') then ignore (build_br hb builder);
 
     (* position at the merge block *)
     position_at_end mb builder;
@@ -272,7 +275,8 @@ and codegen_for is c us s =
     position_at_end bb builder;
     codegen_stmt (Some mb) (Some hb) s;
     codegen_stmt (Some mb) (Some hb) us;
-    ignore (build_br hb builder);
+    let bb' = insertion_block builder in
+    if Option.is_none (block_terminator bb') then ignore (build_br hb builder);
 
     (* position at the merge block *)
     position_at_end mb builder;
@@ -307,7 +311,8 @@ and codegen_range e a s =
     position_at_end bb builder;
     ignore (build_store v' e' builder);
     codegen_stmt (Some mb) (Some hb) s;
-    ignore (build_br hb builder);
+    let bb' = insertion_block builder in
+    if Option.is_none (block_terminator bb') then ignore (build_br hb builder);
 
     (* position at the merge block *)
     position_at_end mb builder;
@@ -377,8 +382,9 @@ let codegen_func (Function (Identifier n, ag, b)) =
         (* repopulate the local variable tables *)
         List.iter codegen_arg ag;
         codegen_stmt None None b;
-        Llvm_analysis.assert_valid_function fn;
+        Llvm_analysis.assert_valid_function fn
     with e ->
+        dump_module program_module;
         delete_function fn;
         raise e
 
@@ -388,9 +394,14 @@ let codegen_brawn name b =
     let fn = declare_function ("brawn_" ^ name) (function_type void [||]) program_module in
     let bb = append_block context "entry" fn in
     position_at_end bb builder;
-    codegen_stmt None None b;
-    ignore (build_ret_void builder);
-    Llvm_analysis.assert_valid_function fn
+    try
+        codegen_stmt None None b;
+        ignore (build_ret_void builder);
+        Llvm_analysis.assert_valid_function fn
+    with e ->
+        dump_module program_module;
+        delete_function fn;
+        raise e
 
 let end_action = function
     | Action (Some End, Some s) -> [s]
