@@ -16,8 +16,6 @@ function chr(c)
 BEGIN{
     outfile = "x"    # default
     count = 1000
-    if (ARGC > 4)
-        usage()
 
     i = 1
     if (ARGV[i] ~ /^-[0-9]+$/) {

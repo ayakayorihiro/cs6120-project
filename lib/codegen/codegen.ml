@@ -157,7 +157,9 @@ and codegen_expr = function
     | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, LValue (Dollar (Literal (Number 0.))), Literal (Regexp r)))
     | Literal l ->
         let v = lookup_constant l in
-        build_load v "load_temp" builder
+        let v' = build_load v "load_temp" builder in
+        print_endline (string_of_lltype (type_of v'));
+        v'
 
 and codegen_missing_args = function
     | 0 -> []
@@ -367,6 +369,7 @@ let codegen_func (Function (Identifier n, ag, b)) =
         (* repopulate the local variable tables *)
         List.iter codegen_arg ag;
         codegen_stmt None None b;
+        Llvm_analysis.assert_valid_function fn
     with e ->
         delete_function fn;
         raise e

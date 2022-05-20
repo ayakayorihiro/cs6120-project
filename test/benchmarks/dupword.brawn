@@ -9,6 +9,6 @@
         print(FILENAME @ ":" @ FNR @ ": duplicate " @ $1 @ "\n")
     for (i = 2; i <= NF; i++)
         if ($i == $(i-1))
-            printf(FILENAME @ ":" @ FNR @ ": duplicate " @ $i @ "\n")
+            print(FILENAME @ ":" @ FNR @ ": duplicate " @ $i @ "\n")
     prev = $NF
 };

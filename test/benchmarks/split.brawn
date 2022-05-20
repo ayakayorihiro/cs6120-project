@@ -16,8 +16,6 @@ function chr(c)
 BEGIN{
     outfile = "x"    # default
     count = 1000
-    if (ARGC > 4)
-        usage()
 
     i = 1
     if (ARGV[i] ~ /#^-[0-9]+$#/) {
@@ -26,9 +24,9 @@ BEGIN{
         i++
     }
     # test argv in case reading from stdin instead of file
-    if (i in ARGV)
+    if ([i] in ARGV)
         i++    # skip data file name
-    if (i in ARGV) {
+    if ([i] in ARGV) {
         outfile = ARGV[i]
         ARGV[i] = ""
     }

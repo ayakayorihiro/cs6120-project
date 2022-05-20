@@ -13,7 +13,7 @@
 function printpage(    i, j)
 {
     if (Nlines <= 0)
-        return
+        return;
 
     print "\n\n"        # header
 
@@ -23,7 +23,7 @@ function printpage(    i, j)
         for (j = 0; j < 5; j++) {
             if (i + j > MAXLINES)
                 break
-            print "   " line[i + j] "                                      " line[i+j+5]
+            print "   " @ line[i + j] @ "                                      " @ line[i+(j+5)]
         }
         print ""
     }
@@ -32,6 +32,8 @@ function printpage(    i, j)
 
     for (i in line)
         line[i] = ""
+
+    return;
 }
 
 
