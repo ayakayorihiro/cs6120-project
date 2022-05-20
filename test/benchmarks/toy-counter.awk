@@ -1,5 +1,6 @@
 # ARGS: Catch-22.txt
-# TODO optional argument in Turnt?
+# I give this argument to make Turnt happy and then thrown it away. 
+# TODO explore optional arguments or similar in Turnt
 
 BEGIN {
 #initialize a counter
