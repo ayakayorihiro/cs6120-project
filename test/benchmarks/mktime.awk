@@ -1,8 +1,3 @@
-# BRAWN NOTES: modified to not use strftime, so
-# the output of this program is now the number of seconds
-# since the epoch instead of returning the formatted
-# date.
-
 # mktime.awk -- convert a canonical date representation
 #                into a timestamp
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain
