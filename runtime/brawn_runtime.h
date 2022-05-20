@@ -104,12 +104,12 @@ public:
  *
  * @param value the value to exit with
  */
-void brawn_exit(brawn_value_t value);
+bool brawn_exit(brawn_value_t value);
 
 /**
  * Do a brawn `next` call.
  */
-void brawn_next();
+bool brawn_next();
 
 /**
  * Return an uninitialised brawn value.
@@ -185,7 +185,7 @@ brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index);
  * @param array the brawn array
  * @param index the index
  */
-void brawn_delete_array(brawn_value_t array, brawn_value_t index);
+bool brawn_delete_array(brawn_value_t array, brawn_value_t index);
 
 /**
  * Index into the given brawn array and update the value.
@@ -614,7 +614,7 @@ brawn_value_t brawn_getline(brawn_value_t lvalue);
  *
  * @count the number of arguments to print
  */
-void brawn_print(uint32_t count, ...);
+bool brawn_print(uint32_t count, ...);
 
 } // extern "C"
 

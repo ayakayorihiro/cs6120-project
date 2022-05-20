@@ -23,7 +23,7 @@ let verify_call f n =
 
 (* Whether or not to record an identifier in the globals *)
 let record_global ig i =
-    if List.mem i ig then ()
+    if List.mem i ig || Hashtbl.mem globals i then ()
     else Hashtbl.add globals i true
 
 (* This large piece of code is just visiting each AST node
@@ -39,8 +39,8 @@ let rec visit_pattern = function
     | Range (u, v) -> visit_expr [] u; visit_expr [] v
 
 and visit_lvalue ig = function
-    | IdentVal i -> record_global ig i
-    | ArrayVal (i, es) -> record_global ig i;
+    | IdentVal (Identifier i) -> record_global ig i
+    | ArrayVal (Identifier i, es) -> record_global ig i;
                           List.iter (visit_expr ig) es
     | Dollar e -> (visit_expr ig) e
 
@@ -48,12 +48,12 @@ and visit_expr ig = function
     | BinaryOp (_, u, v) -> visit_expr ig u;
                             visit_expr ig v
     | UnaryOp (_, e) -> visit_expr ig e
-    | FuncCall (f, es) -> verify_call f (List.length es);
+    | FuncCall (Identifier f, es) -> verify_call f (List.length es);
                           List.iter (visit_expr ig) es
     | Ternary (c, t, f) -> visit_expr ig c;
                            visit_expr ig t;
                            visit_expr ig f
-    | Member (es, i) -> List.iter (visit_expr ig) es;
+    | Member (es, Identifier i) -> List.iter (visit_expr ig) es;
                         record_global ig i
     | Getline None -> ()
     | Getline (Some l)
@@ -75,7 +75,7 @@ and visit_stmt ig loop func = function
                             Option.iter (visit_expr ig) e;
                             Option.iter (visit_stmt ig false func) us;
                             visit_stmt ig true func s
-    | RangedFor (e, a, s) -> record_global ig e;
+    | RangedFor (Identifier e, Identifier a, s) -> record_global ig e;
                              record_global ig a;
                              visit_stmt ig true func s
     | Exit (Some e)
@@ -84,7 +84,7 @@ and visit_stmt ig loop func = function
                   then raise (TypeCheckError "brawn: return outside function body.")
                   else Option.iter (visit_expr ig) e
     | Print es -> List.iter (visit_expr ig) es
-    | Delete (i, es) -> record_global ig i;
+    | Delete (Identifier i, es) -> record_global ig i;
                         List.iter (visit_expr ig) es
     | Block ss -> List.iter (visit_stmt ig loop func) ss
     | Exit None
@@ -93,9 +93,9 @@ and visit_stmt ig loop func = function
     | Break -> if not loop then raise (TypeCheckError "brawn: break outside of loop.") else ()
     | Continue -> if not loop then raise (TypeCheckError "brawn: continue outside of loop.") else ()
 
-let visit_func (Function (_, args, s)) = visit_stmt args false true s
+let visit_func (Function (_, args, s)) = visit_stmt (List.map (fun (Identifier i) -> i) args) false true s
 
-let record_func (Function (f, args, _)) =
+let record_func (Function (Identifier f, args, _)) =
     if Hashtbl.mem functions f
     then raise (TypeCheckError "brawn: function cannot be redefined.")
     else Hashtbl.add functions f (List.length args)

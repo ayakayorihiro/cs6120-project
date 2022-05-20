@@ -149,7 +149,7 @@ static inline bool numeric_comparision(brawn_value_t value1, brawn_value_t value
  *
  * @value the value to print
  */
-static inline void print_brawn_value(brawn_value_t value) {
+static inline bool print_brawn_value(brawn_value_t value) {
     BRAWN_SCALAR(value);
     switch (value->tag) {
         case NUMBER:
@@ -158,7 +158,7 @@ static inline void print_brawn_value(brawn_value_t value) {
             std::cout << *value->string_val;
         case UNINITIALISED:
         default:
-            return;
+            return true;
     }
 }
 
@@ -173,11 +173,11 @@ static inline brawn_value_t boolean(bool value) {
     return value ? one : zero;
 }
 
-void brawn_exit(brawn_value_t value) {
+bool brawn_exit(brawn_value_t value) {
     throw BrawnExitException(value);
 }
 
-void brawn_next() {
+bool brawn_next() {
     throw BrawnNextException();
 }
 
@@ -237,12 +237,13 @@ brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index) {
     }
 }
 
-void brawn_delete_array(brawn_value_t array, brawn_value_t index) {
+bool brawn_delete_array(brawn_value_t array, brawn_value_t index) {
     // delete the value at that index
     BRAWN_ARRAY(array);
     BRAWN_SCALAR(index);
     auto key = get_string(index);
     array->array_val->erase(key);
+    return true;
 }
 
 brawn_value_t brawn_update_array(brawn_value_t array, brawn_value_t index, brawn_value_t value) {
@@ -537,7 +538,7 @@ brawn_value_t brawn_getline(brawn_value_t lvalue) {
     return nullptr;
 }
 
-void brawn_print(uint32_t count, ...) {
+bool brawn_print(uint32_t count, ...) {
     std::va_list args;
     va_start(args, count);
     for (size_t i = 0; i < count; i++) {
@@ -545,6 +546,7 @@ void brawn_print(uint32_t count, ...) {
         print_brawn_value(OFS);
     }
     print_brawn_value(ORS);
+    return true;
 }
 
 #undef BRAWN_VALID

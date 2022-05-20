@@ -21,4 +21,4 @@
  (name brawn)
  (synopsis "An LLVM frontend for Awk.")
  (description "An LLVM frontend for Awk.")
- (depends ocaml dune menhir))
+ (depends llvm ocaml dune menhir))
