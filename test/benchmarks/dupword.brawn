@@ -4,7 +4,7 @@
 
 {
     $0 = tolower($0);
-    gsub(/[^A-Za-z0-9 \t]/, "");
+    gsub(/#[^A-Za-z0-9 \t]#/, "");
     if ($1 == prev)
         print(FILENAME @ ":" @ FNR @ ": duplicate " @ $1 @ "\n")
     for (i = 2; i <= NF; i++)
