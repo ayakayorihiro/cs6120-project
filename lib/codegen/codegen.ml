@@ -1,20 +1,22 @@
 open Llvm
 open Brawn_ast.Ast
+open Brawn_typecheck.Builtins
 
 exception CodeGenError of string
 
 (* Llvm constants *)
 let context = create_context ()
-let runtime_module = Llvm_irreader.parse_ir context (Llvm.MemoryBuffer.of_file "../runtime/brawn_runtime.ll")
+let runtime_module = Llvm_irreader.parse_ir context (Llvm.MemoryBuffer.of_file "/Users/shubham/Documents/Code/cs6120/project/brawn/runtime/brawn_runtime.ll")
 let program_module = create_module context "brawn"
 let builder = builder context
 
 (* Llvm types *)
-let brawn_value_type = Option.get (type_by_name runtime_module "struct::brawn.brawn_value")
+let brawn_value_type = Option.get (type_by_name runtime_module "struct.brawn::brawn_value")
 let regex_value_type = Option.get (type_by_name runtime_module "class.std::__1::basic_regex")
 let brawn_type = pointer_type brawn_value_type
 let regex_type = pointer_type regex_value_type
 let brawn_null = const_null brawn_type
+let void = void_type context
 
 (* A hashtable for all the global variables *)
 let global_variables = Hashtbl.create 10
@@ -26,10 +28,10 @@ let local_variables = Hashtbl.create 10
 let global_constants = Hashtbl.create 10
 
 (* A hashtable for all the functions *)
-let global_functions = Hashtbl.create 10
+let defined_functions = Hashtbl.create 10
 
 (* The $ global variable. *)
-let dollar_value = Option.get (lookup_global "DOLLAR" runtime_module)
+let dollar_value = declare_global brawn_type "DOLLAR" program_module
 
 (* Lookup an identifier. *)
 let lookup_variable name =
@@ -37,7 +39,7 @@ let lookup_variable name =
     then Hashtbl.find local_variables name
     else if Hashtbl.mem global_variables name
     then Hashtbl.find global_variables name
-    else raise (CodeGenError "brawn: unknown identifier.")
+    else raise (CodeGenError ("brawn: unknown identifier " ^ name ^ "."))
 
 (* Lookup a global constant. *)
 let lookup_constant literal =
@@ -47,11 +49,8 @@ let lookup_constant literal =
 
 (* Declare all runtime functions. *)
 let build_runtime_call name args =
-    let func = Option.get (lookup_function ("brawn_" ^ name) runtime_module) in
-    build_call func args "call_temp" builder
-
-(* todo eventually remove *)
-let unimplemented = raise (CodeGenError "brawn: unimplemented.")
+    let fn = Option.get (lookup_function ("brawn_" ^ name) program_module) in
+    build_call fn args "call_temp" builder
 
 let codegen_binary op u v =
     let name = match op with
@@ -96,24 +95,32 @@ let get_op_from_updateop = function
     | SubAssign -> Subtract
 
 let rec codegen_lvalue_get = function
-    | IdentVal i -> build_load (lookup_variable i) "load_temp" builder
-    | ArrayVal (i, es) ->
-        let a' = lookup_variable i in
+    | IdentVal (Identifier i) ->
+        let v = lookup_variable i in
+        build_load v "load_temp" builder
+    | ArrayVal (Identifier i, es) ->
+        let v = lookup_variable i in
+        let v' = build_load v "load_temp" builder in
         let l' = codegen_expr (concat_array_index es) in
-        build_runtime_call "index_array" [|a'; l'|]
+        build_runtime_call "index_array" [|v'; l'|]
     | Dollar e ->
         let l' = codegen_expr e in
-        build_runtime_call "index_array" [|dollar_value; l'|]
+        let v' = build_load dollar_value "load_temp" builder in
+        build_runtime_call "index_array" [|v'; l'|]
 
 and codegen_lvalue_update u = function
-    | IdentVal i -> build_store (lookup_variable i) u builder
-    | ArrayVal (i, es) ->
-        let a' = lookup_variable i in
+    | IdentVal (Identifier i) ->
+        let v = lookup_variable i in
+        build_store u v builder
+    | ArrayVal (Identifier i, es) ->
+        let a = lookup_variable i in
+        let v' = build_load a "load_temp" builder in
         let l' = codegen_expr (concat_array_index es) in
-        build_runtime_call "update_array" [|a'; l'; u|]
+        build_runtime_call "update_array" [|v'; l'; u|]
     | Dollar e ->
+        let v' = build_load dollar_value "load_temp" builder in
         let l' = codegen_expr e in
-        build_runtime_call "update_array" [|dollar_value; l'; u|]
+        build_runtime_call "index_array" [|v'; l'|]
 
 and codegen_expr = function
     | BinaryOp (Match, u, Literal (Regexp r)) -> codegen_binary Match (codegen_expr u) (lookup_constant (Regexp r))
@@ -123,16 +130,16 @@ and codegen_expr = function
     | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
     | Getline None -> codegen_expr (Getline (Some (Dollar (Literal (Number 0.)))))
     | Getline (Some l) -> build_runtime_call "getline" [|codegen_lvalue_get l|]
-    | FuncCall (name, args) -> codegen_func_call name args
+    | FuncCall (Identifier fn, ag) -> codegen_func_call fn ag
     | Ternary (u, v, w) ->
         let u' = codegen_expr u in
         let v' = codegen_expr v in
         let w' = codegen_expr w in
         let cond = build_runtime_call "is_true" [|u'|] in
         build_select cond v' w' "ternary_temp" builder
-    | Member (es, name) ->
+    | Member (es, Identifier i) ->
         let e' = codegen_expr (concat_array_index es) in
-        build_runtime_call "member" [|e'; lookup_variable name|]
+        build_runtime_call "member" [|e'; lookup_variable i|]
     | Postfix (Incr, l) ->
         let o' = codegen_lvalue_get l in
         let n' = build_runtime_call "add" [|o'; lookup_constant (Number 1.)|] in
@@ -148,22 +155,36 @@ and codegen_expr = function
         let u' = codegen_expr u in
         codegen_lvalue_update u' l
     | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, LValue (Dollar (Literal (Number 0.))), Literal (Regexp r)))
-    | Literal l -> lookup_constant l
+    | Literal l ->
+        let v = lookup_constant l in
+        let v' = build_load v "load_temp" builder in
+        print_endline (string_of_lltype (type_of v'));
+        v'
 
-and codegen_func_call func args =
-    let Identifier func' = func in
-    let args' = match (func, args) with
-        | (Identifier "srand", []) -> [brawn_null]
-        | (Identifier "length", []) -> [codegen_expr (LValue (Dollar (Literal (Number 0.))))]
-        | (Identifier "gsub", [x; y])
-        | (Identifier "sub", [x; y]) -> [codegen_expr x; codegen_expr y; codegen_expr (LValue (Dollar (Literal (Number 0.))))]
-        | (Identifier "split", [x; y])
-        | (Identifier "substr", [x; y]) -> [codegen_expr x; codegen_expr y; brawn_null]
-        | _ -> List.map codegen_expr args
+and codegen_missing_args = function
+    | 0 -> []
+    | num -> (build_runtime_call "init" [||]) :: (codegen_missing_args (num - 1))
+
+and codegen_func_call fn ag =
+    let ag' = match (fn, ag) with
+        | ("srand", []) -> [brawn_null]
+        | ("length", []) -> [codegen_expr (LValue (Dollar (Literal (Number 0.))))]
+        | ("gsub", [x; y])
+        | ("sub", [x; y]) -> [codegen_expr x; codegen_expr y; codegen_expr (LValue (Dollar (Literal (Number 0.))))]
+        | ("split", [x; y])
+        | ("substr", [x; y]) -> [codegen_expr x; codegen_expr y; brawn_null]
+        | _ -> List.map codegen_expr ag
     in
-    if Hashtbl.mem global_functions func
-    then build_call (Hashtbl.find global_functions func) (Array.of_list args') "call_temp" builder
-    else build_runtime_call func' (Array.of_list args')
+    if List.mem_assq fn builtin_functions && List.length ag' < List.assq fn builtin_functions
+    then raise (CodeGenError "brawn: invalid number of argments for function.")
+    else ();
+    if Hashtbl.mem defined_functions fn
+    then
+        let f = Hashtbl.find defined_functions fn in
+        let missing = (Array.length (param_types (element_type (type_of f)))) - (List.length ag') in
+        let args = Array.of_list (ag' @ (codegen_missing_args missing)) in
+        build_call f args "call_temp" builder
+    else build_runtime_call fn (Array.of_list ag')
 
 let rec codegen_if eb cb c ts fs =
     (* get the current block and function *)
@@ -252,7 +273,7 @@ and codegen_for is c us s =
 and codegen_range e a s =
     (* get the values for the array and element *)
     let e' = lookup_variable e in
-    let a' = lookup_variable a in
+    let v = lookup_variable a in
 
     (* get the current block and function *)
     let curr = insertion_block builder in
@@ -265,6 +286,7 @@ and codegen_range e a s =
 
     (* build the preheader *)
     position_at_end curr builder;
+    let a' = build_load v "load_temp" builder in
     let iter = build_runtime_call "init_iterator" [|a'|] in
     ignore (build_br hb builder);
 
@@ -276,12 +298,22 @@ and codegen_range e a s =
 
     (* build body block *)
     position_at_end bb builder;
-    ignore (build_store e' v' builder);
+    ignore (build_store v' e' builder);
     codegen_stmt (Some mb) (Some hb) s;
     ignore (build_br hb builder);
 
     (* position at the merge block *)
     position_at_end mb builder;
+
+and codegen_jump b =
+    (* get the current block and function and put a break there *)
+    let curr = insertion_block builder in
+    let fn = block_parent curr in
+    ignore (build_br b builder);
+
+    (* create the next block *)
+    let nb = append_block context "break" fn in
+    position_at_end nb builder
 
 and codegen_stmt eb cb = function
     | If (cond, ts, Some fs) -> codegen_if eb cb cond ts fs
@@ -293,18 +325,18 @@ and codegen_stmt eb cb = function
         let is' = Option.value is ~default:Skip in
         let us' = Option.value us ~default:Skip in
         codegen_for is' c' us' s
-    | RangedFor (e, a, s) -> codegen_range e a s
-    | Break -> ignore (build_br (Option.get eb) builder)
-    | Continue -> ignore (build_br (Option.get cb) builder)
+    | RangedFor (Identifier e, Identifier a, s) -> codegen_range e a s
+    | Break -> codegen_jump (Option.get eb)
+    | Continue -> codegen_jump (Option.get cb)
     | Next -> ignore (build_runtime_call "next" [||])
     | Exit (Some e) -> ignore (build_runtime_call "exit" [|codegen_expr e|])
     | Exit None -> ignore (build_runtime_call "exit" [|brawn_null|])
     | Return (Some e) -> let e' = codegen_expr e in ignore (build_ret e' builder)
-    | Return None -> ignore (build_ret_void builder)
-    | Delete (i, es) ->
+    | Return None -> ignore (build_ret brawn_null builder)
+    | Delete (Identifier i, es) ->
         let e' = codegen_expr (concat_array_index es) in
         ignore (build_runtime_call "delete_array" [|lookup_variable i; e'|])
-    | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (Number 0.)))])
+    | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (String "0")))])
     | Print es ->
         let args = Array.of_list (List.map codegen_expr es) in
         let num = const_int (i32_type context) (List.length es) in
@@ -314,27 +346,44 @@ and codegen_stmt eb cb = function
         List.iter (codegen_stmt eb cb) stmts
     | Skip -> ()
 
-let codegen_func_proto name num_args =
-    let args_types = Array.make num_args brawn_type in
-    let ft = function_type brawn_type args_types in
-    declare_function name ft program_module
+let codegen_func_proto name num =
+    let at = Array.make num brawn_type in
+    let ft = function_type brawn_type at in
+    if Hashtbl.mem defined_functions name
+    then Hashtbl.find defined_functions name
+    else let fn = declare_function name ft program_module in
+         Hashtbl.add defined_functions name fn;
+         fn
 
-let codegen_arg (Identifier arg) =
-    let v = build_alloca brawn_type arg builder in
-    Hashtbl.add local_variables (Identifier arg) v
+let codegen_arg (Identifier a) =
+    let v = build_alloca brawn_type a builder in
+    Hashtbl.add local_variables a v
 
-let codegen_func (Function (Identifier name, args, body)) =
+let codegen_func (Function (Identifier n, ag, b)) =
     (* clear the local variable tables *)
     Hashtbl.clear local_variables;
-    let fn = codegen_func_proto name (List.length args) in
+    let fn = codegen_func_proto n (List.length ag) in
     let bb = append_block context "entry" fn in
     position_at_end bb builder;
     try
         (* repopulate the local variable tables *)
-        List.iter codegen_arg args;
-        codegen_stmt None None body;
-        Llvm_analysis.assert_valid_function fn;
-        Hashtbl.add global_functions (Identifier name) fn
+        List.iter codegen_arg ag;
+        codegen_stmt None None b;
+        Llvm_analysis.assert_valid_function fn
+    with e ->
+        delete_function fn;
+        raise e
+
+let codegen_brawn name b =
+    (* clear the local variable tables *)
+    Hashtbl.clear local_variables;
+    let fn = declare_function ("brawn_" ^ name) (function_type void [||]) program_module in
+    let bb = append_block context "entry" fn in
+    position_at_end bb builder;
+    try
+        codegen_stmt None None b;
+        ignore (build_ret_void builder);
+        Llvm_analysis.assert_valid_function fn
     with e ->
         delete_function fn;
         raise e
@@ -348,11 +397,39 @@ let begin_action = function
 
 let codegen_begin_end acs =
     let eb = Block (List.concat_map end_action acs) in
-    codegen_func (Function (Identifier "brawn_end", [], eb));
+    codegen_brawn "end" eb;
     let bb = Block (List.concat_map begin_action acs) in
-    codegen_func (Function (Identifier "brawn_begin", [], bb))
+    codegen_brawn "begin" bb
+
+let codegen_func_decl (Function (Identifier fn, ag, _)) = ignore (codegen_func_proto fn (List.length ag))
+
+let codegen_global i _ =
+    let g = if not (List.mem i builtin_variables)
+            then define_global i brawn_null program_module
+            else match (lookup_global i runtime_module) with
+                | Some v -> declare_global brawn_type (value_name v) program_module
+                | None -> raise (CodeGenError ("brawn: could not find name " ^ i ^ " in runtime."))
+    in Hashtbl.add global_variables i g
+
+let codegen_literal l _ =
+    let v = match l with
+                | Number _ ->
+                    define_global "number" brawn_null program_module
+                | String _ ->
+                    define_global "string" brawn_null program_module
+                | Regexp _ ->
+                    define_global "regex" brawn_null program_module
+    in
+    Hashtbl.add global_constants l v
+
+let codegen_runtime_funcs () =
+    let process f =
+        let name = value_name f in
+        if (String.length name > 6 && (String.sub name 0 6) = "brawn_") then
+        ignore (declare_function (value_name f) (element_type (type_of f)) program_module) in
+    iter_functions process runtime_module
 
 let codegen_program (Program (fs, acs)) =
+    List.iter codegen_func_decl fs;
     List.iter codegen_func fs;
     codegen_begin_end acs;
-    dump_module program_module

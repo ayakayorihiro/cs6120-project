@@ -1,4 +1,4 @@
 (executable
  (public_name brawn)
  (name main)
- (libraries brawn))
+ (libraries llvm llvm.irreader brawn_ast brawn_parser brawn_typecheck brawn_codegen))

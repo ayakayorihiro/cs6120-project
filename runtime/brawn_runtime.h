@@ -104,12 +104,12 @@ public:
  *
  * @param value the value to exit with
  */
-void brawn_exit(brawn_value_t value);
+bool brawn_exit(brawn_value_t value);
 
 /**
  * Do a brawn `next` call.
  */
-void brawn_next();
+bool brawn_next();
 
 /**
  * Return an uninitialised brawn value.
@@ -185,7 +185,7 @@ brawn_value_t brawn_index_array(brawn_value_t array, brawn_value_t index);
  * @param array the brawn array
  * @param index the index
  */
-void brawn_delete_array(brawn_value_t array, brawn_value_t index);
+bool brawn_delete_array(brawn_value_t array, brawn_value_t index);
 
 /**
  * Index into the given brawn array and update the value.
@@ -545,22 +545,19 @@ brawn_value_t brawn_string_index(brawn_value_t string, brawn_value_t find);
  */
 brawn_value_t brawn_length(brawn_value_t string);
 
-brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input = nullptr);
+brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input);
 
-brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input = nullptr);
+brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input);
 
 brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern);
 
 brawn_value_t brawn_match_position_regex(brawn_value_t string, std::regex* regex);
 
-brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator = nullptr);
+brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator);
 
-/**
- * Perform substitution on a brawn string.
- */
-brawn_value_t brawn_string_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in = nullptr);
+brawn_value_t brawn_string_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in);
 
-brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in = nullptr);
+brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in);
 
 /**
  * Return the substring of the given string.
@@ -571,7 +568,7 @@ brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, braw
  *
  * @return the substring
  */
-brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_value_t end = nullptr);
+brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_value_t end);
 
 /**
  * Convert the string to lowercase.
@@ -614,7 +611,7 @@ brawn_value_t brawn_getline(brawn_value_t lvalue);
  *
  * @count the number of arguments to print
  */
-void brawn_print(uint32_t count, ...);
+bool brawn_print(uint32_t count, ...);
 
 } // extern "C"
 

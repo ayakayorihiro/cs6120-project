@@ -132,7 +132,7 @@ expr:
     | l=lvalue o=update_op e=expr { UpdateOp (o, l, e) }
     | l=lvalue o=incr_op { Postfix (o, l) }
     | o=incr_op l=lvalue { Prefix (o, l) }
-    | LPAREN es=expr_list RPAREN In n=identifier { Member (es, n) }
+    | LBRACK es=expr_list RBRACK In n=identifier { Member (es, n) }
     | c=expr QMARK tv=expr COLON fv=expr { Ternary (c, tv, fv) }
     | l=lvalue ASSIGN e=expr { Assignment (l, e) }
     | c=literal { Literal c }
