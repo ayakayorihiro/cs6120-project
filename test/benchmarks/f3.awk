@@ -1,3 +1,7 @@
+# from https://github.com/ezrosent/frawk/blob/master/info/performance.md
+# This is presented as the more hardcore version.
+# It has this weird PREPARE block.
+
 function min(x,y) { return x<y?x:y; }
 function max(x,y) { return x<y?y:x; }
 function step_stddev(x, k,  xa2) { xa2 = (x - A) * (x - A); A = A + (x-A)/k; Q=Q+((k-1)/k)*xa2; }
@@ -5,10 +9,12 @@ BEGIN {
     getline;
     h2 = $5; h1 = $6;
 }
+
 {
     # f2 is numeric, f1 is a string
     f2=$5+0; f2Len = length($5);
     f1=$6; f1Len = length($6);
+    
     if (num_records++) {
         min1 = min(min1, f1)
         min2 = min(min2, f2)
@@ -80,7 +86,7 @@ END {
 
     stddev = sqrt(m2a)
 
-    print "field","sum","min","max","min_length","max_length","mean","stddev"
-    print h2,SUM,min2,max2,min2L,max2L,(SUM/num_records), stddev
-    print h1,"NA",min1,max1,min1L,max1L,"NA","NA"
+    print "field",  "\t" "sum", "\t" "min", "\t" "max", "\t" "minlen",  "\t" "maxlen",  "\t" "mean",                "\t" "stddev"
+    print h2,       "\t" SUM,   "\t" min2,  "\t" max2,  "\t" min2L,     "\t" max2L,     "\t" (SUM/num_records),     "\t" stddev
+    print h1,       "\t" "NA",  "\t" min1,  "\t" max1,  "\t" min1L,     "\t" max1L,     "\t" "NA",                  "\t" "NA"
 }
