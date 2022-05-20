@@ -1,6 +1,6 @@
 function min(x,y) { return x<y?x:y; }
 function max(x,y) { return x<y?y:x; }
-function step_stddev(x, k,  xa2) { xa2 = (x - A) * (x - A); A = A + (x-A)/k; Q=Q+((k-1)/k)*xa2; }
+function step_stddev(x, k,  xa2) { xa2 = (x - A) * (x - A); A = A + (x-A)/k; Q=Q+((k-1)/k)*xa2; return; }
 BEGIN {
     getline;
     h2 = $5; h1 = $6;
