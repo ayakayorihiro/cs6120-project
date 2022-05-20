@@ -1,3 +1,5 @@
+# ARGS: mktime.txt
+
 # mktime.awk -- convert a canonical date representation
 #                into a timestamp
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain
@@ -79,8 +81,7 @@ function mmktime(str,    res1, res2, a, b, i, j, t, diff)
     return res1
 }
 
-BEGIN
-{
+BEGIN  {
     # Initialize table of month lengths
     _tm_months[0,1] = _tm_months[1,1] = 31
     _tm_months[0,2] = 28; _tm_months[1,2] = 29
@@ -97,8 +98,10 @@ BEGIN
 }
 
 BEGIN  {
+    # printf "Enter date as yyyy mm dd hh mm ss: "
     getline _tm_test_date
+    print "You entered " _tm_test_date
     t = mmktime(_tm_test_date)
-    # r = strftime("%Y %m %d %H %M %S", t)
-    print "Got back (" t ")"
+    r = strftime("%Y %m %d %H %M %S", t)
+    printf "Got back (%s)\n", r
 }
