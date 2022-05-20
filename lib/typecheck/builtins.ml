@@ -4,7 +4,7 @@ open Brawn_ast.Ast
 
 let builtin_consts = [
     Number 1.;
-    Number 0.;
+    String "0";
     String ""
 ]
 
