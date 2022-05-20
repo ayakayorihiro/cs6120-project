@@ -161,7 +161,7 @@ and codegen_expr = function
 
 and codegen_missing_args = function
     | 0 -> []
-    | num -> (build_runtime_call "init" [||]) :: codegen_missing_args (num - 1)
+    | num -> (build_runtime_call "init" [||]) :: (codegen_missing_args (num - 1))
 
 and codegen_func_call fn ag =
     let ag' = match (fn, ag) with
@@ -179,7 +179,7 @@ and codegen_func_call fn ag =
     if Hashtbl.mem defined_functions fn
     then
         let f = Hashtbl.find defined_functions fn in
-        let missing = (Array.length (param_types (type_of f))) - (List.length ag') in
+        let missing = (Array.length (param_types (element_type (type_of f)))) - (List.length ag') in
         let args = Array.of_list (ag' @ (codegen_missing_args missing)) in
         build_call f args "call_temp" builder
     else build_runtime_call fn (Array.of_list ag')
@@ -303,6 +303,16 @@ and codegen_range e a s =
     (* position at the merge block *)
     position_at_end mb builder;
 
+and codegen_jump b =
+    (* get the current block and function and put a break there *)
+    let curr = insertion_block builder in
+    let fn = block_parent curr in
+    ignore (build_br b builder);
+
+    (* create the next block *)
+    let nb = append_block context "break" fn in
+    position_at_end nb builder
+
 and codegen_stmt eb cb = function
     | If (cond, ts, Some fs) -> codegen_if eb cb cond ts fs
     | If (cond, ts, None) -> codegen_stmt eb cb (If (cond, ts, Some Skip))
@@ -314,17 +324,17 @@ and codegen_stmt eb cb = function
         let us' = Option.value us ~default:Skip in
         codegen_for is' c' us' s
     | RangedFor (Identifier e, Identifier a, s) -> codegen_range e a s
-    | Break -> ignore (build_br (Option.get eb) builder)
-    | Continue -> ignore (build_br (Option.get cb) builder)
+    | Break -> codegen_jump (Option.get eb)
+    | Continue -> codegen_jump (Option.get cb)
     | Next -> ignore (build_runtime_call "next" [||])
     | Exit (Some e) -> ignore (build_runtime_call "exit" [|codegen_expr e|])
     | Exit None -> ignore (build_runtime_call "exit" [|brawn_null|])
     | Return (Some e) -> let e' = codegen_expr e in ignore (build_ret e' builder)
-    | Return None -> ignore (build_ret_void builder)
+    | Return None -> ignore (build_ret brawn_null builder)
     | Delete (Identifier i, es) ->
         let e' = codegen_expr (concat_array_index es) in
         ignore (build_runtime_call "delete_array" [|lookup_variable i; e'|])
-    | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (Number 0.)))])
+    | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (String "0")))])
     | Print es ->
         let args = Array.of_list (List.map codegen_expr es) in
         let num = const_int (i32_type context) (List.length es) in
@@ -345,7 +355,6 @@ let codegen_func_proto name num =
 
 let codegen_arg (Identifier a) =
     let v = build_alloca brawn_type a builder in
-    print_endline (string_of_int (alignment v));
     Hashtbl.add local_variables a v
 
 let codegen_func (Function (Identifier n, ag, b)) =
@@ -358,8 +367,20 @@ let codegen_func (Function (Identifier n, ag, b)) =
         (* repopulate the local variable tables *)
         List.iter codegen_arg ag;
         codegen_stmt None None b;
-        ignore (build_ret brawn_null builder);
-        Llvm_analysis.assert_valid_function fn;
+    with e ->
+        delete_function fn;
+        raise e
+
+let codegen_brawn name b =
+    (* clear the local variable tables *)
+    Hashtbl.clear local_variables;
+    let fn = declare_function ("brawn_" ^ name) (function_type void [||]) program_module in
+    let bb = append_block context "entry" fn in
+    position_at_end bb builder;
+    try
+        codegen_stmt None None b;
+        ignore (build_ret_void builder);
+        Llvm_analysis.assert_valid_function fn
     with e ->
         delete_function fn;
         raise e
@@ -373,9 +394,9 @@ let begin_action = function
 
 let codegen_begin_end acs =
     let eb = Block (List.concat_map end_action acs) in
-    codegen_func (Function (Identifier "brawn_end", [], eb));
+    codegen_brawn "end" eb;
     let bb = Block (List.concat_map begin_action acs) in
-    codegen_func (Function (Identifier "brawn_begin", [], bb))
+    codegen_brawn "begin" bb
 
 let codegen_func_decl (Function (Identifier fn, ag, _)) = ignore (codegen_func_proto fn (List.length ag))
 

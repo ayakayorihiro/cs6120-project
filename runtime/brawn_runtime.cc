@@ -494,15 +494,33 @@ brawn_value_t brawn_length(brawn_value_t string) {
     return brawn_from_number(get_string(string).size());
 }
 
-// brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input);
+brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
+    return nullptr;
+}
 
-// brawn_value_t brawn_gsub_regex(std::regex pattern, brawn_value_t replace, brawn_value_t input);
+brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
+    return nullptr;
+}
 
-// brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern) {
+brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern) {
+    return nullptr;
+}
 
-// brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator);
+brawn_value_t brawn_match_position_regex(brawn_value_t string, std::regex* regex) {
+    return nullptr;
+}
 
-// brawn_value_t brawn_string_sub(ere, repl[, in  ]);
+brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator) {
+    return nullptr;
+}
+
+brawn_value_t brawn_string_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in) {
+    return nullptr;
+}
+
+brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in) {
+    return nullptr;
+}
 
 brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_value_t end) {
     BRAWN_SCALAR(string);

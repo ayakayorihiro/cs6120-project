@@ -3,7 +3,7 @@
     open Lexing
 
     (* NOTE: modify the below based on whether you'd like to see what tokens are generatedb *)
-    let debug_print _ = (* print_endline content *) ()
+    let debug_print _ = (*print_endline content*) ()
 
     exception SyntaxError of string
 
@@ -22,13 +22,12 @@ let whitespace = [' ' '\t']
 let newline = '\n'
 let ident = ( alpha | '_' ) (alpha | digit | '_')*
 let pm = ['+' '-']
-let number = pm?digit+'.'?digit*(['e' 'E']pm?digit+)?
+let number = digit+'.'?digit*(['e' 'E']pm?digit+)?
 
 rule token = parse
     | eof    { debug_print "EOF"; EOF }
     | "EOF" { debug_print "alt-EOF" ; EOF}
-    | comment              { next_line lexbuf; token lexbuf }
-    | [' ' '\t'] { debug_print "w" ; token lexbuf } (* skip whitespace *)
+    | [' ' '\t'] { debug_print "" ; token lexbuf } (* skip whitespace *)
     | newline              { next_line lexbuf; token lexbuf }
     | "BEGIN" { debug_print "BEGIN" ; Begin }
     | "END" { debug_print "END" ; End }
@@ -86,8 +85,9 @@ rule token = parse
     | '=' { debug_print "ASSIGN";ASSIGN }
     | "getline" { debug_print "GETLINE"; GETLINE }
     | number as n { debug_print @@ "NUMBER " ^ n ; NUMBER (float_of_string n) }
-    | '"'         { read_string (Buffer.create 256) lexbuf }
-    | '/'         { read_regex (Buffer.create 256) lexbuf }
+    | '"'         { debug_print "STRING"; read_string (Buffer.create 256) lexbuf }
+    | "/#"        { debug_print "ERE"; read_regex (Buffer.create 256) lexbuf }
+    | comment     { next_line lexbuf; token lexbuf }
     | ident as s  { debug_print @@ "NAME " ^ s ; NAME s}
 
 and read_string buf = parse
@@ -103,15 +103,16 @@ and read_string buf = parse
       { Buffer.add_string buf (Lexing.lexeme lexbuf);
         read_string buf lexbuf
       }
-    | _ { raise (SyntaxError ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
-    | eof { raise (SyntaxError ("String is not terminated")) }
+    | _ { raise (SyntaxError ("brawn: illegal string character: " ^ Lexing.lexeme lexbuf ^ ".")) }
+    | eof { raise (SyntaxError ("brawn: string is not terminated.")) }
 
 and read_regex buf = parse
-    | '/'       { ERE (Buffer.contents buf) }
-    | '\\' '/'  { Buffer.add_string buf "\\/"; read_regex buf lexbuf }
-    | [^ '/']+
+    | "#/"       { ERE (Buffer.contents buf) }
+    | '\\' '#'   { Buffer.add_char buf '#'; read_string buf lexbuf }
+    | '\\' '/'   { Buffer.add_char buf '/'; read_string buf lexbuf }
+    | [^ '#' '/']+
       { Buffer.add_string buf (Lexing.lexeme lexbuf);
         read_regex buf lexbuf
       }
-    | _ { raise (SyntaxError ("Illegal extended regex character: " ^ Lexing.lexeme lexbuf)) }
-    | eof { raise (SyntaxError ("Extended regex is not terminated")) }
+    | _ { raise (SyntaxError ("brawn: illegal extended regex character: " ^ Lexing.lexeme lexbuf ^ ".")) }
+    | eof { raise (SyntaxError ("brawn: extended regex is not terminated.")) }
