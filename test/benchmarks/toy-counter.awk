@@ -1,4 +1,4 @@
-# ARGS: Catch-22.txt
+# ARGS: toy-counter-input.txt
 # I give this argument to make Turnt happy and then thrown it away. 
 # TODO explore optional arguments or similar in Turnt
 
