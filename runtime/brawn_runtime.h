@@ -19,25 +19,17 @@ struct brawn_value;
 /** The type of a brawn value. */
 typedef brawn_value* brawn_value_t;
 
-/** This is the representation of a brawn string. */
-typedef std::basic_string
-<
-    char,
-    std::char_traits<char>,
-    gc_allocator<char>
-> brawn_string;
-
 /** Type of a brawn string. */
-typedef brawn_string* brawn_string_t;
+typedef std::string* brawn_string_t;
 
 /** Rrepresentation of a brawn "array". */
 typedef std::unordered_map
 <
-    brawn_string,
+    std::string,
     brawn_value_t,
-    std::hash<brawn_string>,
-    std::equal_to<brawn_string>,
-    gc_allocator<std::pair<const brawn_string, brawn_value_t>>
+    std::hash<std::string>,
+    std::equal_to<std::string>,
+    gc_allocator<std::pair<const std::string, brawn_value_t>>
 > brawn_array;
 
 /** Type of a brawn "array". */
@@ -95,7 +87,7 @@ public:
      */
     BrawnExitException(brawn_value_t value): value(value) {}
 
-    brawn_value_t value;
+    const brawn_value_t value;
 
 };
 
@@ -262,7 +254,7 @@ brawn_value_t brawn_add(brawn_value_t value1, brawn_value_t value2);
  *
  * @return the subtracted result
  */
-brawn_value_t brawn_sub(brawn_value_t value1, brawn_value_t value2);
+brawn_value_t brawn_subtr(brawn_value_t value1, brawn_value_t value2);
 
 /**
  * Multiply the two brawn values.
@@ -402,7 +394,7 @@ brawn_value_t brawn_concat(brawn_value_t value1, brawn_value_t value2);
  *
  * @return whether the pattern matches to the string
  */
-brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern);
+brawn_value_t brawn_match_builtin(brawn_value_t string, brawn_value_t pattern);
 
 /**
  * Match the given brawn value to the regex.
@@ -412,7 +404,7 @@ brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern);
  *
  * @return whether the pattern matches to the string
  */
-brawn_value_t brawn_match_regex(brawn_value_t string, std::regex* pattern);
+brawn_value_t brawn_match_builtin_regex(brawn_value_t string, std::regex* pattern);
 
 /**
  * Does the pattern not match the given string.
@@ -534,7 +526,7 @@ brawn_value_t brawn_srand(brawn_value_t seed);
  *
  * @return the index starting from 1
  */
-brawn_value_t brawn_string_index(brawn_value_t string, brawn_value_t find);
+brawn_value_t brawn_index(brawn_value_t string, brawn_value_t find);
 
 /**
  * Return the length of the given string.
@@ -545,19 +537,91 @@ brawn_value_t brawn_string_index(brawn_value_t string, brawn_value_t find);
  */
 brawn_value_t brawn_length(brawn_value_t string);
 
+/**
+ * Perform the brawn gsub function.
+ *
+ * @param pattern the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
 brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input);
 
+/**
+ * Perform the brawn gsub function.
+ *
+ * @param regex   the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
 brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input);
 
-brawn_value_t brawn_match_position(brawn_value_t string, brawn_value_t pattern);
+/**
+ * Perform the brawn match function.
+ *
+ * @param string  the given string
+ * @param pattern the given pattern
+ *
+ * @return the index of match
+ */
+brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern);
 
-brawn_value_t brawn_match_position_regex(brawn_value_t string, std::regex* regex);
+/**
+ * Perform the brawn match function.
+ *
+ * @param string the given string
+ * @param regex  the given pattern
+ *
+ * @return the index of match
+ */
+brawn_value_t brawn_match_regex(brawn_value_t string, std::regex* regex);
 
+/**
+ * Perform the brawn gsub function.
+ *
+ * @param regex   the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
 brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator);
 
-brawn_value_t brawn_string_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in);
+/**
+ * Perform the brawn gsub function.
+ *
+ * @param regex   the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
+brawn_value_t brawn_split_regex(brawn_value_t string, brawn_value_t array, std::regex* seperator);
 
-brawn_value_t brawn_string_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in);
+/**
+ * Perform the brawn sub function.
+ *
+ * @param pattern the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
+brawn_value_t brawn_sub(brawn_value_t pattern, brawn_value_t repl, brawn_value_t in);
+
+/**
+ * Perform the brawn sub function.
+ *
+ * @param regex   the given pattern
+ * @param replace the string to replace with
+ * @param input   the string to perform operation on
+ *
+ * @return the number of strings replaced
+ */
+brawn_value_t brawn_sub_regex(std::regex* regex, brawn_value_t repl, brawn_value_t in);
 
 /**
  * Return the substring of the given string.
@@ -612,6 +676,21 @@ brawn_value_t brawn_getline(brawn_value_t lvalue);
  * @count the number of arguments to print
  */
 bool brawn_print(uint32_t count, ...);
+
+/**
+ * The brawn begin function generated by the compiler.
+ */
+extern void brawn_begin();
+
+/**
+ * The brawn end function generated by the compiler.
+ */
+extern void brawn_end();
+
+/**
+ * The brawn process function generated by the compiler.
+ */
+extern void brawn_process();
 
 } // extern "C"
 

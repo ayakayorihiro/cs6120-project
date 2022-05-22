@@ -26,10 +26,5 @@ let _ =
     let output = Sys.argv.(2) in
     let program = parse_program (open_in input) in
     Typecheck.visit_program program;
-    Llvm.set_target_triple (Llvm.target_triple Codegen.runtime_module) Codegen.program_module;
-    Llvm.set_data_layout (Llvm.data_layout Codegen.runtime_module) Codegen.program_module;
-    Codegen.codegen_globals ();
-    Codegen.codegen_literals ();
-    Codegen.codegen_runtime_funcs ();
     Codegen.codegen_program program;
     Llvm.print_module output Codegen.program_module;

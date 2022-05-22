@@ -16,6 +16,7 @@ let brawn_value_type = Option.get (type_by_name runtime_module "struct.brawn::br
 let regex_value_type = Option.get (type_by_name runtime_module "class.std::__1::basic_regex")
 let brawn_type = pointer_type brawn_value_type
 let regex_type = pointer_type regex_value_type
+let regex_null = const_null regex_type
 let brawn_null = const_null brawn_type
 let void = void_type context
 
@@ -61,7 +62,7 @@ let codegen_binary op u v =
         | Pow -> "pow"
         | Plus -> "add"
         | Divide -> "div"
-        | Subtract -> "sub"
+        | Subtract -> "subtr"
         | Multiply -> "mult"
         | Concat -> "concat"
         | Equals -> "eq"
@@ -70,7 +71,7 @@ let codegen_binary op u v =
         | LessThanEq -> "le"
         | GreaterThan -> "gt"
         | GreaterThanEq -> "ge"
-        | Match -> (if type_of v = brawn_type then "match" else "match_regex")
+        | Match -> (if type_of v = brawn_type then "match_builtin" else "match_builtin_regex")
         | NonMatch -> (if type_of v = brawn_type then "not_match" else "non_match_regex") in
     build_runtime_call name [|u; v|]
 
@@ -135,7 +136,7 @@ and codegen_expr = function
     | BinaryOp (op, u, v) -> codegen_binary op (codegen_expr u) (codegen_expr v)
     | UnaryOp (op, u) -> codegen_unary op (codegen_expr u)
     | UpdateOp (op, l, u) -> codegen_expr (Assignment (l, BinaryOp (get_op_from_updateop op, LValue l, u)))
-    | Getline None -> codegen_expr (Getline (Some (Dollar (Literal (String "0")))))
+    | Getline None -> build_runtime_call "getline" [|brawn_null|]
     | Getline (Some l) -> build_runtime_call "getline" [|codegen_lvalue_get l|]
     | FuncCall (Identifier fn, ag) -> codegen_func_call fn ag
     | Ternary (u, v, w) ->
@@ -182,6 +183,12 @@ and codegen_func_call fn ag =
         | ("substr", [x; y]) -> [codegen_expr x; codegen_expr y; brawn_null]
         | _ -> List.map codegen_expr ag
     in
+    let fn' = match (fn, ag') with
+        | ("gsub", [_; _; x])
+        | ("match", [_; _; x])
+        | ("split", [_; _; x])
+        | ("sub", [_; _; x]) when type_of x = regex_type -> fn ^ "_regex"
+        | _ -> fn in
     if List.mem_assq fn builtin_functions && List.length ag' < List.assq fn builtin_functions
     then raise (CodeGenError "brawn: invalid number of argments for function.")
     else ();
@@ -191,7 +198,7 @@ and codegen_func_call fn ag =
         let missing = (Array.length (param_types (element_type (type_of f)))) - (List.length ag') in
         let args = Array.of_list (ag' @ (codegen_missing_args missing)) in
         build_call f args "call_temp" builder
-    else build_runtime_call fn (Array.of_list ag')
+    else build_runtime_call fn' (Array.of_list ag')
 
 let rec codegen_if eb cb c ts fs =
     (* get the current block and function *)
@@ -344,7 +351,7 @@ and codegen_stmt eb cb = function
     | Exit (Some e) -> ignore (build_runtime_call "exit" [|codegen_expr e|])
     | Exit None -> ignore (build_runtime_call "exit" [|brawn_null|])
     | Return (Some e) -> let e' = codegen_expr e in ignore (build_ret e' builder)
-    | Return None -> ignore (build_ret brawn_null builder)
+    | Return None -> ignore (build_ret (build_runtime_call "init" [||]) builder)
     | Delete (a, es) ->
         let e' = codegen_expr (concat_array_index es) in
         let a' = codegen_lvalue_get (IdentVal a) in
@@ -378,15 +385,14 @@ let codegen_func (Function (Identifier n, ag, b)) =
     let fn = codegen_func_proto n (List.length ag) in
     let bb = append_block context "entry" fn in
     position_at_end bb builder;
-    try
-        (* repopulate the local variable tables *)
-        List.iter codegen_arg ag;
-        codegen_stmt None None b;
-        Llvm_analysis.assert_valid_function fn
-    with e ->
-        dump_module program_module;
-        delete_function fn;
-        raise e
+
+    (* repopulate the local variable tables *)
+    List.iter codegen_arg ag;
+    codegen_stmt None None b;
+    let b = insertion_block builder in
+    if Option.is_none (block_terminator b)
+    then ignore (build_ret (build_runtime_call "init" [||]) builder);
+    Llvm_analysis.assert_valid_function fn
 
 let codegen_brawn name b =
     (* clear the local variable tables *)
@@ -394,14 +400,9 @@ let codegen_brawn name b =
     let fn = declare_function ("brawn_" ^ name) (function_type void [||]) program_module in
     let bb = append_block context "entry" fn in
     position_at_end bb builder;
-    try
-        codegen_stmt None None b;
-        ignore (build_ret_void builder);
-        Llvm_analysis.assert_valid_function fn
-    with e ->
-        dump_module program_module;
-        delete_function fn;
-        raise e
+    codegen_stmt None None b;
+    ignore (build_ret_void builder);
+    Llvm_analysis.assert_valid_function fn
 
 let end_action = function
     | Action (Some End, Some s) -> [s]
@@ -416,11 +417,16 @@ let codegen_begin_end acs =
     let bb = Block (List.concat_map begin_action acs) in
     codegen_brawn "begin" bb
 
-let codegen_func_decl (Function (Identifier fn, ag, _)) = ignore (codegen_func_proto fn (List.length ag))
+let codegen_func_decl (Function (Identifier fn, ag, _)) =
+    let f = codegen_func_proto fn (List.length ag) in
+    set_visibility Visibility.Hidden f;
+    set_linkage Linkage.Internal f
 
 let codegen_global i _ =
     let g = if not (List.mem i builtin_variables)
-            then define_global i brawn_null program_module
+            then let g = define_global i brawn_null program_module in
+                 set_visibility Visibility.Hidden g;
+                 set_linkage Linkage.Internal g; g
             else match (lookup_global i runtime_module) with
                 | Some v -> declare_global brawn_type (value_name v) program_module
                 | None -> raise (CodeGenError ("brawn: could not find name " ^ i ^ " in runtime."))
@@ -433,9 +439,54 @@ let codegen_literal l _ =
                 | String _ ->
                     define_global "string" brawn_null program_module
                 | Regexp _ ->
-                    define_global "regex" brawn_null program_module
+                    define_global "regex" regex_null program_module
     in
+    set_visibility Visibility.Hidden v;
+    set_linkage Linkage.Internal v;
     Hashtbl.add global_constants l v
+
+(* Generate code for global initialisation functions. *)
+let codegen_init_func () =
+    let f = declare_function "brawn_ctor" (function_type void [||]) program_module in
+    set_visibility Visibility.Hidden f;
+    set_linkage Linkage.Internal f;
+    let b = append_block context "entry" f in
+    position_at_end b builder;
+    let process_literal l v =
+        let c = match l with
+            | Number n -> build_runtime_call "from_number" [|const_float (double_type context) n|]
+            | String s ->
+                let c = const_stringz context s in
+                let g = define_global "" c program_module in
+                set_linkage Linkage.Private g;
+                set_unnamed_addr true g;
+                set_global_constant true g;
+                let i = const_int (i64_type context) 0 in
+                let v = const_in_bounds_gep g [|i; i|] in
+                build_runtime_call "from_const_string" [|v|]
+            | Regexp r ->
+                let c = const_stringz context r in
+                let g = define_global "" c program_module in
+                set_linkage Linkage.Private g;
+                set_unnamed_addr true g;
+                set_global_constant true g;
+                let i = const_int (i64_type context) 0 in
+                let v = const_in_bounds_gep g [|i; i|] in
+                build_runtime_call "init_regex" [|v|]
+        in ignore (build_store c v builder) in
+    let process_global g v =
+        if not (List.mem g builtin_variables) then
+        ignore (build_store (build_runtime_call "init" [||]) v builder) in
+    Hashtbl.iter process_global global_variables;
+    Hashtbl.iter process_literal global_constants;
+    ignore (build_ret_void builder);
+    Llvm_analysis.assert_valid_function f;
+
+    (* add this function to the const llvm.global_ctors *)
+    let t = struct_type context [|i32_type context; pointer_type (function_type void [||]); pointer_type (i8_type context)|] in
+    let v = const_struct context [|const_int (i32_type context) 65534; f; const_pointer_null (pointer_type ((i8_type context)))|] in
+    let g = define_global "llvm.global_ctors" (const_array t [|v|]) program_module in
+    set_linkage Linkage.Appending g
 
 (* Generate code for all the runtime functions. *)
 let codegen_runtime_funcs () =
@@ -445,12 +496,6 @@ let codegen_runtime_funcs () =
         ignore (declare_function (value_name f) (element_type (type_of f)) program_module) in
     iter_functions process runtime_module
 
-(* Generate code for the given awk program. *)
-let codegen_program (Program (fs, acs)) =
-    List.iter codegen_func_decl fs;
-    List.iter codegen_func fs;
-    codegen_begin_end acs
-
 (* Generate code for all the global variables. *)
 let codegen_globals () =
     Hashtbl.iter codegen_global globals
@@ -458,3 +503,28 @@ let codegen_globals () =
 (* Generate code for all the literal constants. *)
 let codegen_literals () =
     Hashtbl.iter codegen_literal constants
+
+(* Generate code for main action logic. *)
+let codegen_action acs =
+    let process = function
+        | Action (None, None)
+        | Action (Some Begin, _)
+        | Action (Some End, _) -> []
+        | Action (None, Some s) -> [s]
+        | Action (Some (Expr e), None) -> [Expression e]
+        | Action (Some (Expr e), Some s) -> [If (e, s, None)] in
+    let ss = List.concat_map process acs in
+    codegen_brawn "process" (Block ss)
+
+(* Generate code for the given awk program. *)
+let codegen_program (Program (fs, acs)) =
+    set_target_triple (target_triple runtime_module) program_module;
+    set_data_layout (data_layout runtime_module) program_module;
+    codegen_runtime_funcs ();
+    codegen_globals ();
+    codegen_literals ();
+    codegen_init_func ();
+    List.iter codegen_func_decl fs;
+    List.iter codegen_func fs;
+    codegen_begin_end acs;
+    codegen_action acs

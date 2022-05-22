@@ -33,14 +33,11 @@ let builtin_functions = [
 let builtin_variables = [
     "ARGC";
     "ARGV";
-    "CONVFMT";
     "ENVIRON";
-    "FILENAME";
     "FNR";
     "FS";
     "NF";
     "NR";
-    "OFMT";
     "OFS";
     "ORS";
     "RLENGTH";

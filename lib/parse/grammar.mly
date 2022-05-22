@@ -81,7 +81,6 @@ pattern:
      | Begin { Begin }
      | End { End }
      | e=expr { Expr e }
-     | u=expr COMMA v=expr { Range (u, v) }
 
 statement_list: ls=nonempty_list(statement) { ls };
 

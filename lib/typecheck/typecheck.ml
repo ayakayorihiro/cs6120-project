@@ -24,10 +24,15 @@ let verify_call f n =
     if (Hashtbl.find functions f) < n then
       raise (TypeCheckError ("brawn: too many arguments in call to " ^ f ^ "."))
 
-(* Whether or not to record an identifier in the globals *)
+(* Whether or not to record an identifier in the globals. *)
 let record_global ig i =
     if List.mem i ig || Hashtbl.mem globals i then ()
     else Hashtbl.add globals i true
+
+(* Record a literal in the constants. *)
+let record_literal l =
+    if not (Hashtbl.mem constants l)
+    then Hashtbl.add constants l true
 
 (* This large piece of code is just visiting each AST node
  * and collecting all literals and global variables, and
@@ -39,7 +44,6 @@ let rec visit_pattern = function
     | Begin
     | End -> ()
     | Expr e -> visit_expr [] e
-    | Range (u, v) -> visit_expr [] u; visit_expr [] v
 
 and visit_lvalue ig = function
     | IdentVal (Identifier i) -> record_global ig i
@@ -65,7 +69,7 @@ and visit_expr ig = function
     | LValue l -> visit_lvalue ig l
     | UpdateOp (_, l, e)
     | Assignment (l, e) -> visit_lvalue ig l; (visit_expr ig) e
-    | Literal l -> Hashtbl.add constants l true
+    | Literal l -> record_literal l
 
 and visit_stmt ig loop func = function
     | If (e, t, f) -> visit_expr ig e;
@@ -102,8 +106,7 @@ and visit_stmt ig loop func = function
 
 let visit_func (Function (_, args, s)) =
     return := true;
-    visit_stmt (List.map (fun (Identifier i) -> i) args) false true s;
-    if !return then raise (TypeCheckError "brawn: no return statement in the function.")
+    visit_stmt (List.map (fun (Identifier i) -> i) args) false true s
 
 let record_func (Function (Identifier f, args, _)) =
     if Hashtbl.mem functions f

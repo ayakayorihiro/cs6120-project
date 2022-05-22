@@ -56,7 +56,7 @@ type literal =
 [@@deriving show]
 
 (* Pattern to match in the patter-action pairs *)
-type pattern = Begin | End | Expr of expr | Range of expr * expr
+type pattern = Begin | End | Expr of expr
 [@@deriving show]
 
 (* Lvalues are values that can be referenced by name *)
