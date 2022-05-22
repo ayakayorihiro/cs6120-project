@@ -1,3 +1,5 @@
+# ARGS: hist.txt
+
 # histsort.awk -- compact a shell history file
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain
 # May 1993
