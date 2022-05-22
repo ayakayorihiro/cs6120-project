@@ -4,6 +4,8 @@ all: gc brawn_runtime.ll
 	$(CXX) $(CXXFLAGS) -S -emit-llvm $< -o $@
 clean:
 	rm -rf *.ll *.o *.s
+	make -C deps/gc clean
 gc:
+	test -f deps/gc/configure || (cd deps/gc; ./autogen.sh; ./configure --enable-cplusplus --enable-static --disable-shared)
 	make -C deps/gc -j
 .PHONY: gc all

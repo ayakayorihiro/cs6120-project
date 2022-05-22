@@ -2,12 +2,14 @@ open Llvm
 open Brawn_ast.Ast
 open Brawn_typecheck.Builtins
 open Brawn_typecheck.Typecheck
-
+    
+(* Exception emitted by codegen fuctions *)
 exception CodeGenError of string
 
 (* Llvm constants *)
+let runtime_file = try Sys.argv.(1) with _ -> print_endline "usage: brawnc runtime_module.ll input_file.brawn output_file.ll"; exit 1
 let context = create_context ()
-let runtime_module = Llvm_irreader.parse_ir context (Llvm.MemoryBuffer.of_file "/Users/shubham/Documents/Code/cs6120/project/brawn/runtime/brawn_runtime.ll")
+let runtime_module = Llvm_irreader.parse_ir context (Llvm.MemoryBuffer.of_file runtime_file)
 let program_module = create_module context "brawn"
 let builder = builder context
 

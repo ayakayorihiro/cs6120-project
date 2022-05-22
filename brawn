@@ -8,10 +8,6 @@ FILE=$1
 EXE=$2
 NAME=$(basename $FILE)
 TEMP=$(mktemp -d)
-make -C $DIR/runtime > /dev/null
-cd $DIR
-dune exec brawn $FILE $TEMP/$NAME.ll
-llvm-link $DIR/runtime/brawn_runtime.ll $TEMP/$NAME.ll -o $TEMP/program.ll
-llc $TEMP/program.ll -o $TEMP/program.s
-clang++ -L$DIR/runtime/deps/gc/.libs/ $TEMP/program.s -o $EXE -lgccpp -lgc
+$DIR/_build/default/bin/main.exe $DIR/runtime/brawn_runtime.ll $FILE $TEMP/$NAME.ll
+clang++ -ffast-math -finline-functions $TEMP/$NAME.ll $DIR/runtime/brawn_runtime.ll -L$DIR/runtime/deps/gc/.libs/ -o $EXE -lgccpp -lgc
 rm -rf $TEMP

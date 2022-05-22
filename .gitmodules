@@ -2,6 +2,3 @@
 	path = runtime/deps/gc
 	url = https://github.com/ivmai/bdwgc
 
-[submodule "runtime/deps/libatomic_ops"]
-	path = runtime/deps/libatomic_ops
-	url = https://github.com/ivmai/libatomic_ops
