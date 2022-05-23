@@ -7,9 +7,9 @@
     $0 = tolower($0)
     gsub(/[^A-Za-z0-9 \t]/, "");
     if ($1 == prev)
-        print(FILENAME ":" FNR ": duplicate " $1 "\n")
+        print(NR ": duplicate " $1)
     for (i = 2; i <= NF; i++)
         if ($i == $(i-1))
-            printf(FILENAME ":" FNR ": duplicate " $i "\n")
+            print(NR ": duplicate " $i)
     prev = $NF
 }

@@ -1,3 +1,4 @@
+# ARGS: f1.test
 BEGIN { getline; }
 { N[$1]++; SUM[$1]+=$2; }
 END {

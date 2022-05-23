@@ -34,7 +34,6 @@ let builtin_variables = [
     "ARGC";
     "ARGV";
     "ENVIRON";
-    "FNR";
     "FS";
     "NF";
     "NR";

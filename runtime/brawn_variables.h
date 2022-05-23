@@ -10,7 +10,6 @@ extern "C" {
 extern brawn_value_t ARGC;
 extern brawn_value_t ARGV;
 extern brawn_value_t ENVIRON;
-extern brawn_value_t FNR;
 extern brawn_value_t FS;
 extern brawn_value_t NF;
 extern brawn_value_t NR;

@@ -52,7 +52,6 @@ static std::regex default_fs("[\t\n ]+");
 brawn_value_t ARGC = brawn_from_number(0);
 brawn_value_t ARGV = brawn_init_array();
 brawn_value_t ENVIRON = brawn_init_array();
-brawn_value_t FNR = brawn_from_number(0);
 brawn_value_t FS = brawn_from_const_string(" ");
 brawn_value_t NF = brawn_from_number(0);
 brawn_value_t NR = brawn_from_number(0);
@@ -498,8 +497,12 @@ brawn_value_t brawn_index(brawn_value_t string, brawn_value_t find) {
 }
 
 brawn_value_t brawn_length(brawn_value_t string) {
-    BRAWN_SCALAR(string);
-    return brawn_from_number(get_string(string).size());
+    if (string == nullptr) {
+        return brawn_from_number(get_string(brawn_index_array(DOLLAR, zero_string)).length());
+    } else {
+        BRAWN_SCALAR(string);
+        return brawn_from_number(get_string(string).size());
+    }
 }
 
 brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern) {
@@ -580,20 +583,21 @@ brawn_value_t brawn_split_regex(brawn_value_t string, brawn_value_t array, std::
 }
 
 brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
-    BRAWN_SCALAR(pattern);
     BRAWN_SCALAR(replace);
-    BRAWN_SCALAR(input);
+    BRAWN_SCALAR(pattern);
+    if (input != nullptr) { BRAWN_SCALAR(input); }
     auto regex = std::regex(get_string(pattern), std::regex::extended);
-    return brawn_sub_regex(&regex, pattern, input);
+    return brawn_gsub_regex(&regex, replace, input);
 }
 
 brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
     BRAWN_VALID(regex);
     BRAWN_SCALAR(replace);
-    BRAWN_SCALAR(input);
+    if (input != nullptr) { BRAWN_SCALAR(input); }
 
-    // perform the replacement
-    auto record = get_string(input), repl = get_string(replace);
+    // get the string and perform the replacement
+    auto record = get_string(input == nullptr ? brawn_index_array(DOLLAR, zero_string) : input);
+    auto repl = get_string(replace);
     auto begin = std::sregex_iterator(record.begin(), record.end(), *regex);
     auto end = std::sregex_iterator();
 
@@ -610,26 +614,33 @@ brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_v
     result->append(last);
 
     // set the value of input and return
-    input->tag = STRING;
-    input->string_val = result;
+    if (input == nullptr) {
+        auto value = new (GC) brawn_value; value->string_val = result; value->tag = STRING;
+        brawn_update_array(DOLLAR, zero_string, value);
+        NF = brawn_split(value, DOLLAR, FS);
+    } else {
+        input->tag = STRING;
+        input->string_val = result;
+    }
     return brawn_from_number(num_subs);
 }
 
 brawn_value_t brawn_sub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
-    BRAWN_SCALAR(pattern);
     BRAWN_SCALAR(replace);
-    BRAWN_SCALAR(input);
+    BRAWN_SCALAR(pattern);
+    if (input != nullptr) { BRAWN_SCALAR(input); }
     auto regex = std::regex(get_string(pattern), std::regex::extended);
-    return brawn_sub_regex(&regex, pattern, input);
+    return brawn_sub_regex(&regex, replace, input);
 }
 
 brawn_value_t brawn_sub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
     BRAWN_VALID(regex);
     BRAWN_SCALAR(replace);
-    BRAWN_SCALAR(input);
+    if (input != nullptr) { BRAWN_SCALAR(input); }
 
-    // perform the replacement
-    auto record = get_string(input), repl = get_string(replace);
+    // get the string and perform the replacement
+    auto record = get_string(input == nullptr ? brawn_index_array(DOLLAR, zero_string) : input);
+    auto repl = get_string(replace);
     auto begin = std::sregex_iterator(record.begin(), record.end(), *regex);
     auto end = std::sregex_iterator();
 
@@ -642,13 +653,19 @@ brawn_value_t brawn_sub_regex(std::regex* regex, brawn_value_t replace, brawn_va
         result->append(it->format(repl, std::regex_constants::format_sed));
         last = it->suffix().str();
         num_subs += 1;
-        break; // only perform at most one substitution
+        break;
     }
     result->append(last);
 
     // set the value of input and return
-    input->tag = STRING;
-    input->string_val = result;
+    if (input == nullptr) {
+        auto value = new (GC) brawn_value; value->string_val = result; value->tag = STRING;
+        brawn_update_array(DOLLAR, zero_string, value);
+        NF= brawn_split(value, DOLLAR, FS);
+    } else {
+        input->tag = STRING;
+        input->string_val = result;
+    }
     return brawn_from_number(num_subs);
 }
 
@@ -708,6 +725,11 @@ brawn_value_t brawn_getline(brawn_value_t lvalue) {
 
     // if no characters were read, then return false
     if (buf.in_avail() == 0) {
+        if (!std::cin.eof() && lvalue != nullptr) {
+            NR = brawn_add(NR, one);
+            NF = zero;
+        }
+
         return zero;
     }
 
@@ -724,7 +746,8 @@ brawn_value_t brawn_getline(brawn_value_t lvalue) {
         // set the value for $0 and others using `brawn_split_regex`
         auto val = brawn_from_string_temp(buf.str());
         brawn_update_array(DOLLAR, zero_string, val);
-        brawn_split(val, DOLLAR, FS);
+        NF = brawn_split(val, DOLLAR, FS);
+        NR = brawn_add(NR, one);
     }
 
     // since a record was read, return true

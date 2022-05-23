@@ -1,1 +1,1 @@
-command = "awk -f {filename} < {args}"
+command = "awk -f {filename} < {args} | sort"

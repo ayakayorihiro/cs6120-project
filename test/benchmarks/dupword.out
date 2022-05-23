@@ -1,4 +1,5 @@
-:1: duplicate hello
-:3: duplicate this
-:5: duplicate mistakes
-
+1: duplicate hello
+3: duplicate this
+4: duplicate maybe
+4: duplicate this
+6: duplicate mistakes
