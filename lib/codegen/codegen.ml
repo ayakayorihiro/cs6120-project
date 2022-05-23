@@ -186,10 +186,10 @@ and codegen_func_call fn ag =
         | _ -> List.map codegen_expr ag
     in
     let fn' = match (fn, ag') with
-        | ("gsub", [_; _; x])
-        | ("match", [_; _; x])
+        | ("gsub", [x; _; _])
+        | ("match", [_; x])
         | ("split", [_; _; x])
-        | ("sub", [_; _; x]) when type_of x = regex_type -> fn ^ "_regex"
+        | ("sub", [x; _; _]) when type_of x = regex_type -> fn ^ "_regex"
         | _ -> fn in
     if List.mem_assq fn builtin_functions && List.length ag' < List.assq fn builtin_functions
     then raise (CodeGenError "brawn: invalid number of argments for function.")

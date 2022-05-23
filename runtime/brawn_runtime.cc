@@ -46,13 +46,14 @@ static brawn_value_t one = brawn_from_number(1);
 static brawn_value_t zero = brawn_from_number(0);
 static brawn_value_t empty_string = brawn_from_const_string("");
 static brawn_value_t zero_string = brawn_from_const_string("0");
+static std::regex default_fs("[\t\n ]+");
 
 /* Create builtin variables. */
 brawn_value_t ARGC = brawn_from_number(0);
 brawn_value_t ARGV = brawn_init_array();
 brawn_value_t ENVIRON = brawn_init_array();
 brawn_value_t FNR = brawn_from_number(0);
-brawn_value_t FS = brawn_from_const_string("[\t\n ]+");
+brawn_value_t FS = brawn_from_const_string(" ");
 brawn_value_t NF = brawn_from_number(0);
 brawn_value_t NR = brawn_from_number(0);
 brawn_value_t OFS = brawn_from_const_string(" ");
@@ -70,12 +71,27 @@ brawn_value_t DOLLAR = brawn_init_array();
  *
  * @return a brawn value containing that string
  */
-static inline brawn_value_t brawn_from_string(std::string string) {
+static inline brawn_value_t brawn_from_string_copy(std::string string) {
     auto value = new (GC) brawn_value;
     value->string_val = new (GC) std::string(string);
     value->tag = STRING;
     return value;
 }
+
+/**
+ * Initialise a brawn value from a temporary string.
+ *
+ * @param string the string
+ *
+ * @return a brawn value containing that string
+ */
+static inline brawn_value_t brawn_from_string_temp(std::string&& string) {
+    auto value = new (GC) brawn_value;
+    value->string_val = new (GC) std::string(std::move(string));
+    value->tag = STRING;
+    return value;
+}
+
 
 /**
  * Return a number from the given brawn value.
@@ -194,15 +210,15 @@ brawn_value_t brawn_from_number(double number) {
     return value;
 }
 
-brawn_value_t brawn_from_const_string(const char string[]) {
+brawn_value_t brawn_from_const_string(const char* string) {
     auto value = new (GC) brawn_value();
     value->string_val = new (GC) std::string(string);
     value->tag = STRING;
     return value;
 }
 
-std::regex* brawn_init_regex(const char pattern[]) {
-    return new (GC) std::regex(pattern);
+std::regex* brawn_init_regex(const char* pattern) {
+    return new (GC) std::regex(pattern, std::regex::extended);
 }
 
 bool brawn_is_true(brawn_value_t value) {
@@ -263,7 +279,7 @@ brawn_value_t brawn_next_iterator(brawn_iterator* iterator) {
         return nullptr;
     } else {
         auto key = ((iterator->iterator)++)->first;
-        return brawn_from_string(key);
+        return brawn_from_string_copy(key);
     }
 }
 
@@ -372,7 +388,7 @@ brawn_value_t brawn_ne(brawn_value_t value1, brawn_value_t value2) {
 }
 
 brawn_value_t brawn_concat(brawn_value_t value1, brawn_value_t value2) {
-    return brawn_from_string(get_string(value1) + get_string(value2));
+    return brawn_from_string_temp(get_string(value1) + get_string(value2));
 }
 
 brawn_value_t brawn_match_builtin(brawn_value_t string, brawn_value_t pattern) {
@@ -384,7 +400,7 @@ brawn_value_t brawn_match_builtin(brawn_value_t string, brawn_value_t pattern) {
 brawn_value_t brawn_match_builtin_regex(brawn_value_t string, std::regex* pattern) {
     BRAWN_SCALAR(string);
     BRAWN_VALID(pattern);
-    return boolean(std::regex_match(get_string(string), *pattern));
+    return boolean(std::regex_search(get_string(string), *pattern));
 }
 
 brawn_value_t brawn_not_match(brawn_value_t string, brawn_value_t pattern) {
@@ -396,7 +412,7 @@ brawn_value_t brawn_not_match(brawn_value_t string, brawn_value_t pattern) {
 brawn_value_t brawn_not_match_regex(brawn_value_t string, std::regex* pattern) {
     BRAWN_SCALAR(string);
     BRAWN_VALID(pattern);
-    return boolean(!std::regex_match(get_string(string), *pattern));
+    return boolean(!std::regex_search(get_string(string), *pattern));
 }
 
 brawn_value_t brawn_member(brawn_value_t value, brawn_value_t array) {
@@ -486,36 +502,154 @@ brawn_value_t brawn_length(brawn_value_t string) {
     return brawn_from_number(get_string(string).size());
 }
 
-brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
-    return nullptr;
-}
-
-brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
-    return nullptr;
-}
-
 brawn_value_t brawn_match(brawn_value_t string, brawn_value_t pattern) {
-    return nullptr;
+    BRAWN_SCALAR(string);
+    BRAWN_SCALAR(pattern);
+    auto regex = std::regex(get_string(pattern), std::regex::extended);
+    return brawn_match_regex(string, &regex);
 }
 
 brawn_value_t brawn_match_regex(brawn_value_t string, std::regex* regex) {
-    return nullptr;
+    BRAWN_SCALAR(string);
+    BRAWN_VALID(regex);
+
+    // get the string and create the match object
+    auto str = get_string(string);
+    auto match = std::smatch();
+    long index, length;
+
+    // perform the match and extract the results
+    std::regex_search(str, match, *regex);
+    if (match.empty()) {
+        index = 0;
+        length = -1;
+    } else {
+        index = match.position(0) + 1;
+        length = match.length(0);
+    }
+
+    // set the built-in variables and return
+    RSTART = brawn_from_number(index);
+    RLENGTH = brawn_from_number(length);
+    return RSTART;
 }
 
 brawn_value_t brawn_split(brawn_value_t string, brawn_value_t array, brawn_value_t seperator) {
-    return nullptr;
+    BRAWN_SCALAR(string);
+    BRAWN_ARRAY(array);
+    if (seperator != nullptr) { BRAWN_SCALAR(seperator); }
+    auto field_sep = get_string(seperator);
+    if (field_sep == " ") {
+        return brawn_split_regex(string, array, &default_fs);
+    } else {
+        auto regex = std::regex(get_string(seperator), std::regex::extended);
+        return brawn_split_regex(string, array, &regex);
+    }
 }
 
 brawn_value_t brawn_split_regex(brawn_value_t string, brawn_value_t array, std::regex* regex) {
-    return nullptr;
+    BRAWN_SCALAR(string);
+    BRAWN_ARRAY(array);
+    BRAWN_VALID(regex);
+
+    // perform the match on the string
+    auto record = get_string(string);
+    auto begin = std::sregex_iterator(record.begin(), record.end(), *regex);
+    auto end = std::sregex_iterator();
+
+    // split the record into different fields
+    size_t num_records = 1;
+    std::string last = record;
+    for (auto it = begin; it != end; ++it) {
+        if (!it->prefix().str().empty()) {
+            brawn_update_array(
+                array,
+                brawn_from_string_temp(std::to_string(num_records)),
+                brawn_from_string_temp(it->prefix().str())
+            );
+            last = it->suffix().str();
+            num_records += 1;
+        }
+    }
+    brawn_update_array(
+        array,
+        brawn_from_string_temp(std::to_string(num_records)),
+        brawn_from_string_temp(std::move(last))
+    );
+    return brawn_from_number(num_records);
+}
+
+brawn_value_t brawn_gsub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
+    BRAWN_SCALAR(pattern);
+    BRAWN_SCALAR(replace);
+    BRAWN_SCALAR(input);
+    auto regex = std::regex(get_string(pattern), std::regex::extended);
+    return brawn_sub_regex(&regex, pattern, input);
+}
+
+brawn_value_t brawn_gsub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
+    BRAWN_VALID(regex);
+    BRAWN_SCALAR(replace);
+    BRAWN_SCALAR(input);
+
+    // perform the replacement
+    auto record = get_string(input), repl = get_string(replace);
+    auto begin = std::sregex_iterator(record.begin(), record.end(), *regex);
+    auto end = std::sregex_iterator();
+
+    // perform replacement on each match
+    size_t num_subs = 0;
+    auto last = record;
+    auto result = new (GC) std::string();
+    for (auto it = begin; it != end; ++it) {
+        result->append(it->prefix().str());
+        result->append(it->format(repl, std::regex_constants::format_sed));
+        last = it->suffix().str();
+        num_subs += 1;
+    }
+    result->append(last);
+
+    // set the value of input and return
+    input->tag = STRING;
+    input->string_val = result;
+    return brawn_from_number(num_subs);
 }
 
 brawn_value_t brawn_sub(brawn_value_t pattern, brawn_value_t replace, brawn_value_t input) {
-    return nullptr;
+    BRAWN_SCALAR(pattern);
+    BRAWN_SCALAR(replace);
+    BRAWN_SCALAR(input);
+    auto regex = std::regex(get_string(pattern), std::regex::extended);
+    return brawn_sub_regex(&regex, pattern, input);
 }
 
 brawn_value_t brawn_sub_regex(std::regex* regex, brawn_value_t replace, brawn_value_t input) {
-    return nullptr;
+    BRAWN_VALID(regex);
+    BRAWN_SCALAR(replace);
+    BRAWN_SCALAR(input);
+
+    // perform the replacement
+    auto record = get_string(input), repl = get_string(replace);
+    auto begin = std::sregex_iterator(record.begin(), record.end(), *regex);
+    auto end = std::sregex_iterator();
+
+    // perform replacement on each match
+    size_t num_subs = 0;
+    auto last = record;
+    auto result = new (GC) std::string();
+    for (auto it = begin; it != end; ++it) {
+        result->append(it->prefix().str());
+        result->append(it->format(repl, std::regex_constants::format_sed));
+        last = it->suffix().str();
+        num_subs += 1;
+        break; // only perform at most one substitution
+    }
+    result->append(last);
+
+    // set the value of input and return
+    input->tag = STRING;
+    input->string_val = result;
+    return brawn_from_number(num_subs);
 }
 
 brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_value_t end) {
@@ -525,21 +659,21 @@ brawn_value_t brawn_substr(brawn_value_t string, brawn_value_t start, brawn_valu
     auto s = get_string(string);
     auto m = get_number(start);
     auto n = end == nullptr ? s.size() : get_number(end);
-    return brawn_from_string(s.substr(m - 1, n));
+    return brawn_from_string_temp(s.substr(m - 1, n));
 }
 
 brawn_value_t brawn_tolower(brawn_value_t string) {
     BRAWN_SCALAR(string);
     auto s = get_string(string);
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
-    return brawn_from_string(std::move(s));
+    return brawn_from_string_temp(std::move(s));
 }
 
 brawn_value_t brawn_toupper(brawn_value_t string) {
     BRAWN_SCALAR(string);
     auto s = get_string(string);
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::toupper(c); });
-    return brawn_from_string(std::move(s));
+    return brawn_from_string_temp(std::move(s));
 }
 
 brawn_value_t brawn_system(brawn_value_t expression) {
@@ -587,37 +721,10 @@ brawn_value_t brawn_getline(brawn_value_t lvalue) {
         lvalue->tag = STRING;
         lvalue->string_val = new (GC) std::string(record);
     } else {
-        // get the record seperator and create the regex
-        auto field_sep = get_string(FS);
-        auto regex = std::regex(field_sep, std::regex::extended);
-
-        // set the value for $0
-        brawn_update_array(DOLLAR, zero_string, brawn_from_string(buf.str()));
-        auto begin = std::sregex_iterator(record.begin(), record.end(), regex);
-        auto end = std::sregex_iterator();
-
-        // split the record into different fields
-        size_t prev_end = 0, num_records = 1;
-        for (auto it = begin; it != end; ++it) {
-            auto pos = it->position(0);
-            auto length = it->length(0);
-            if ((pos - prev_end) > 0) {
-                brawn_update_array(
-                    DOLLAR,
-                    brawn_from_string(std::to_string(num_records)),
-                    brawn_from_string(record.substr(prev_end, pos))
-                );
-                num_records += 1;
-            }
-            prev_end = pos + length;
-        }
-        if (prev_end < record.length()) {
-            brawn_update_array(
-                DOLLAR,
-                brawn_from_string(std::to_string(num_records)),
-                brawn_from_string(record.substr(prev_end))
-            );
-        }
+        // set the value for $0 and others using `brawn_split_regex`
+        auto val = brawn_from_string_temp(buf.str());
+        brawn_update_array(DOLLAR, zero_string, val);
+        brawn_split(val, DOLLAR, FS);
     }
 
     // since a record was read, return true
@@ -641,10 +748,49 @@ bool brawn_print(uint32_t count, ...) {
 
 } // namespace brawn
 
+/** array of strings for environment variables */
+extern char **environ;
+
+/**
+ * Setup the environment variables.
+ */
+static inline void setup_environment() {
+    for (size_t index = 0; environ[index] != nullptr; index++) {
+        auto str = std::string(environ[index]);
+        auto split = str.find_first_of('=');
+        if (split != std::string::npos) {
+            auto key = str.substr(0, split), value = str.substr(split);
+            brawn::brawn_update_array(
+                brawn::ENVIRON,
+                brawn::brawn_from_string_temp(std::move(key)),
+                brawn::brawn_from_string_temp(std::move(value))
+            );
+        }
+    }
+}
+
+/**
+ * Setup the arguments.
+ */
+static inline void setup_args(int argc, char* argv[]) {
+    brawn::ARGC = brawn::brawn_from_number(argc);
+    for (size_t index = 0; index < argc; index++) {
+        brawn::brawn_update_array(
+            brawn::ARGV,
+            brawn::brawn_from_string_temp(std::to_string(index)),
+            brawn::brawn_from_const_string(argv[index])
+        );
+    }
+}
+
 /**
  * The entry point for the awk program
  */
 int main (int argc, char* argv[]) {
+    // setup environ and arg
+    setup_environment();
+    setup_args(argc, argv);
+
     // return value for the function
     int result = 0;
 
