@@ -14,7 +14,7 @@ NR > 1 {
     f1=$6; f1Len = length($6);
     # sanity check
     print "f1: " f1
-    print "f2: " f2
+    print "f2: " f2 "\n"
     if (NR==2) {
         min1=max1=f1;
         min2=max2=f2;
