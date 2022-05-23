@@ -6,3 +6,5 @@ brawn.opam
 .DS_Store
 *.o
 *.ll
+NY_TREE_GRM_ESTN.csv
+all_train.csv
