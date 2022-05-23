@@ -1,4 +1,4 @@
-# ARGS: f1.test
+# ARGS: numbers.tsv
 BEGIN { getline; }
 { N[$1]++; SUM[$1]+=$2; }
 END {
