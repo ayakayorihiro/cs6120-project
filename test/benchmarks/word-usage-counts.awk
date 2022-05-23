@@ -1,5 +1,4 @@
-# ARGS: Catch-22.txt
-
+# ARGS: words.txt
 # Print list of word frequencies
 # Arnold Robbins, arnold@gnu.ai.mit.edu, Public Domain
 # June 1992
