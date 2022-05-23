@@ -30,4 +30,4 @@ cd cs6120-project/
 ./brawn input-file.brawn output-executable
 ```
 
-NOTE: More details on the CS 6120 Blog Post.
+NOTE: More details on the [CS 6120 Blog Post](blog-post/index.md).

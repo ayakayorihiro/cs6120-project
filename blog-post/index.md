@@ -17,7 +17,12 @@ We report on `BRAWN`, the Big Red AWk implementatioN. Our project is in service 
 
 ### Where we are
 
-We compile a `.brawn` file, which supports almost all of `AWK`'s features, to `LLVM` IR. We then link this to a runtime which implements all the built-in operations and has a garbage collector (Boehm's [^8]) to produce a working executable. Unfortunately we have not been able to test our implementation extensively, except for a few test programs that excercise the basic machinery of `BRAWN` (the `main` loop, arrays, loops, conditionals, printing, and regular expression matching).
+We compile a `.brawn` file, which supports almost all of `AWK`'s features, to `LLVM` IR. We then
+link this to a runtime which implements all the built-in operations and has a garbage collector
+(Boehm's [^8]) to produce a working executable. Unfortunately we have not been able to test our
+implementation extensively, except for a few test programs that excercise the basic machinery of
+`BRAWN` (the `main` loop, arrays, loops, conditionals, printing, and regular expression matching).
+Our code is [here](https://github.com/ayakayorihiro/cs6120-project).
 
 # Implementation
 
@@ -41,9 +46,9 @@ Here we skate over the parts of our implementation that are standard. We discuss
 2. The mechanics of this step are standard: just ask `clang++` to emit LLVM. This is also where we run into many gotchas and make many of our design decisions. We discuss these in future sections.
 
 3. This work is in `OCaml`. We walk over the AST generated previously and define an `LLVM` IR production for each constructor, as suggested by the Kaleidocope guide [^1]. Loosely speaking, there are three kinds of tasks:
-    * issue straightforward calls to the `OCaml`-to-`LLVM` module [^2]
-    * issue `extern` calls to the runtime module created previously
-    * make basic blocks and design control flow that is accurate to `AWK`'s behavior
+    * Issue straightforward calls to the `OCaml`-to-`LLVM` module [^2].
+    * Issue `extern` calls to the runtime module created previously.
+    * Make basic blocks and design control flow that is accurate to `AWK`'s behavior.
 
 
 ## Curiosities of `AWK`
@@ -60,7 +65,7 @@ Here we skate over the parts of our implementation that are standard. We discuss
 6. Supporting `AWK`'s syntax of `BEGIN`/`END` blocks requires custom control flow. The same is true of the `next` and `exit` commands. We implement these using C++ exceptions. When the compiler encounters a `next` or `exit` call, it calls the corresponding function in the runtime which throws an exception, thus trigerring the desired control flow in the main loop.
 
 ## Points of Divergence (BRAWN vs AWK)
-For convenience, we restrict ourselves to a (large) subset of `AWK` with a few changes for ease of implementation. We find these choices defensible because they reduce burden on the parser and runtime. While interesting, these are not the focus of our project. Here are the points of divergence:
+For convenience, we restrict ourselves to a (large) subset of `AWK` with a few changes for ease of implementation. We find these choices defensible because they reduce burden on the parser and runtime, which while interesting, are not the focus of our project. Here are the points of divergence:
 
 1. We restrict I/O functionality. We support only the `print` function (no `printf` or `sprintf`). We only support reading input from `stdin` and writing output to `stdout`. Hence, we do not support built-in variables like `FNR`, `CONVFMT`, `OFMT`, and `FILENAME`.
 
@@ -84,18 +89,19 @@ For a small selection of `AWK` programs that we can support in `BRAWN`, we compa
 and convert them by hand into their equivalent `BRAWN` programs. The changes required are minor and are as described above. 
 
 The programs perform the following operations:
+
 | Name | Description |
 |------|-------------|
 | `math` [^6] | Compute means after grouping by the value of a column |
 | `dupword` [^5] | Detect consecutive uses of words in a text |
 | `word-count` [^5] | Report on the frequency of each word in a text |
 
-We use `turnt` to generate the outputs of `AWK`, and compare these with `BRAWN` outputs by eye.
+We use `turnt` to generate the outputs of `AWK`, and compare these with `BRAWN` outputs by eye. Our compiled programs pass these tests.
 
 ## Benchmark
-For the same programs as above, we provide a brief benchmark against the standard GNU `AWK` implementation. Because startup times are high, only longer-running programs offer interesting data. In our case, that is `math.awk` versus `math.brawn`. We run our benchmarks on a MacBook Pro running MacOS 12; the `AWK` version is 5.1.1.
+We provide a brief benchmark against the standard GNU `AWK` implementation. Because startup times are high, only longer-running programs offer interesting data. In our case, that is `math.awk` versus `math.brawn`. We run our benchmarks on a MacBook Pro running MacOS 12; the `AWK` version is 5.1.1.
 
-Averaging over 100 runs of `math.awk`, a run takes 75 ms. Averaging over 5 runs of `math.brawn`, a run takes 4.845 **s**. For obvious reasons, we do not run the the latter test 100 times. This represents a 65x slowdown. This is disappointing, but we think some of the fault lies with `C++`'s implementation of `REGEX`, which is known to be slow. [^7]
+Averaging over 100 runs of `math.awk`, a run takes 75 milliseconds. Averaging over 5 runs of `math.brawn`, a run takes **4.845 seconds**. For obvious reasons, we do not run the the latter test 100 times. This represents a _65x_ slowdown. This is disappointing, but we think some of the fault lies with `C++`'s implementation of `std::regex`, which is known to be slow [^7].
 
 
 # Learnings
@@ -111,11 +117,19 @@ Much of the above took a lot of experimentation to figure out. Here are some of 
 
 # References
 
-[^1]: The official guide to implementing a language using LLVM: [https://releases.llvm.org/8.0.0/docs/tutorial/OCamlLangImpl1.html](https://releases.llvm.org/8.0.0/docs/tutorial/OCamlLangImpl1.html)
-[^2]: An OCaml module for generating LLVM IR: [https://llvm.moe/](https://llvm.moe/)
-[^3]: Menhir: [http://gallium.inria.fr/~fpottier/menhir/](http://gallium.inria.fr/~fpottier/menhir/)
-[^4]: The AWK specification: [https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html](https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html)
-[^5]: Benchmarks `word-count` and `dupword` obtained from [https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154](https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154)
-[^6]: Benchmark `math` obtained from [https://github.com/ezrosent/frawk/blob/master/info/performance.md#group-by-key](https://github.com/ezrosent/frawk/blob/master/info/performance.md#group-by-key)
-[^7]: C++ and its slow regex: [https://stackoverflow.com/questions/41481811/why-pcre-regex-is-much-faster-than-c11-regex](https://stackoverflow.com/questions/41481811/why-pcre-regex-is-much-faster-than-c11-regex)
 [^8]: Boehm's GC: [https://www.hboehm.info/gc/](https://www.hboehm.info/gc/)
+
+[^3]: Menhir: [http://gallium.inria.fr/~fpottier/menhir/](http://gallium.inria.fr/~fpottier/menhir/)
+
+[^4]: The AWK specification: [https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html](https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html)
+
+[^1]: The official guide to implementing a language using LLVM: [https://releases.llvm.org/8.0.0/docs/tutorial/OCamlLangImpl1.html](https://releases.llvm.org/8.0.0/docs/tutorial/OCamlLangImpl1.html)
+
+[^2]: An OCaml module for generating LLVM IR: [https://llvm.moe/](https://llvm.moe/)
+
+[^6]: Benchmark `math` obtained from [https://github.com/ezrosent/frawk/blob/master/info/performance.md#group-by-key](https://github.com/ezrosent/frawk/blob/master/info/performance.md#group-by-key)
+
+[^5]: Benchmarks `word-count` and `dupword` obtained from [https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154](https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154)
+
+[^7]: C++ and its slow regex: [https://stackoverflow.com/questions/41481811/why-pcre-regex-is-much-faster-than-c11-regex](https://stackoverflow.com/questions/41481811/why-pcre-regex-is-much-faster-than-c11-regex)
+
