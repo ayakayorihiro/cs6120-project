@@ -87,18 +87,18 @@ rule token = parse
     | comment     { next_line lexbuf; token lexbuf }
 
 and read_string buf = parse
-    | '"'    { STRING (Buffer.contents buf) }
-    | "\\/"  { Buffer.add_char buf '/'; read_string buf lexbuf }
-    | "\\\"" { Buffer.add_char buf '"'; read_string buf lexbuf }
-    | "\\\\" { Buffer.add_char buf '\\'; read_string buf lexbuf }
-    | "\\a"  { Buffer.add_char buf '\007'; read_string buf lexbuf }
-    | "\\b"  { Buffer.add_char buf '\b'; read_string buf lexbuf }
-    | "\\v"  { Buffer.add_char buf '\011'; read_string buf lexbuf }
-    | "\\f"  { Buffer.add_char buf '\012'; read_string buf lexbuf }
-    | "\\?"  { Buffer.add_char buf '\063'; read_string buf lexbuf }
-    | "\\n"  { Buffer.add_char buf '\n'; read_string buf lexbuf }
-    | "\\r"  { Buffer.add_char buf '\r'; read_string buf lexbuf }
-    | "\\t"  { Buffer.add_char buf '\t'; read_string buf lexbuf }
+    | '"'       { STRING (Buffer.contents buf) }
+    | '\\' '/'  { Buffer.add_char buf '/'; read_string buf lexbuf }
+    | '\\' '"'  { Buffer.add_char buf '"'; read_string buf lexbuf }
+    | '\\' '\\' { Buffer.add_char buf '\\'; read_string buf lexbuf }
+    | '\\' 'a'  { Buffer.add_char buf '\007'; read_string buf lexbuf }
+    | '\\' 'b'  { Buffer.add_char buf '\b'; read_string buf lexbuf }
+    | '\\' 'v'  { Buffer.add_char buf '\011'; read_string buf lexbuf }
+    | '\\' 'f'  { Buffer.add_char buf '\012'; read_string buf lexbuf }
+    | '\\' '?'  { Buffer.add_char buf '\063'; read_string buf lexbuf }
+    | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
+    | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
+    | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
     | [^ '"' '\\']+
       { Buffer.add_string buf (Lexing.lexeme lexbuf);
         read_string buf lexbuf
@@ -107,15 +107,18 @@ and read_string buf = parse
     | eof { raise (SyntaxError ("brawn: string is not terminated.")) }
 
 and read_regex buf = parse
-    | "#/"   { ERE (Buffer.contents buf) }
-    | "\\#"  { Buffer.add_char buf '#'; read_string buf lexbuf }
-    | "\\/"  { Buffer.add_char buf '/'; read_string buf lexbuf }
-    | "\\b"  { Buffer.add_char buf '\b'; read_string buf lexbuf }
-    | "\\f"  { Buffer.add_char buf '\012'; read_string buf lexbuf }
-    | "\\n"  { Buffer.add_char buf '\n'; read_string buf lexbuf }
-    | "\\r"  { Buffer.add_char buf '\r'; read_string buf lexbuf }
-    | "\\t"  { Buffer.add_char buf '\t'; read_string buf lexbuf }
-    | [^ '\n' '\t' '\012' '\r' '\b' '#' ]+
+    | "#/"      { ERE (Buffer.contents buf) }
+    | '\\' '#'  { Buffer.add_char buf '#'; read_regex buf lexbuf }
+    | '\\' '/'  { Buffer.add_char buf '/'; read_regex buf lexbuf }
+    | '\\' 'a'  { Buffer.add_char buf '\007'; read_regex buf lexbuf }
+    | '\\' 'b'  { Buffer.add_char buf '\b'; read_regex buf lexbuf }
+    | '\\' 'v'  { Buffer.add_char buf '\011'; read_regex buf lexbuf }
+    | '\\' 'f'  { Buffer.add_char buf '\012'; read_regex buf lexbuf }
+    | '\\' '?'  { Buffer.add_char buf '\063'; read_regex buf lexbuf }
+    | '\\' 'n'  { Buffer.add_char buf '\n'; read_regex buf lexbuf }
+    | '\\' 'r'  { Buffer.add_char buf '\r'; read_regex buf lexbuf }
+    | '\\' 't'  { Buffer.add_char buf '\t'; read_regex buf lexbuf }
+    | [^ '#' ]+
       { Buffer.add_string buf (Lexing.lexeme lexbuf);
         read_regex buf lexbuf
       }

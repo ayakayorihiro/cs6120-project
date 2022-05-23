@@ -36,6 +36,7 @@ let defined_functions = Hashtbl.create 10
 
 (* The $ global variable. *)
 let dollar_value = declare_global brawn_type "DOLLAR" program_module
+let dollar_0 = LValue (Dollar (Literal (String "0")))
 
 (* Lookup an identifier. *)
 let lookup_variable name =
@@ -124,7 +125,7 @@ and codegen_lvalue_update u = function
     | Dollar e ->
         let v' = build_load dollar_value "load_temp" builder in
         let l' = codegen_expr e in
-        build_runtime_call "index_array" [|v'; l'|]
+        build_runtime_call "update_array" [|v'; l'; u|]
 
 and codegen_expr = function
     | BinaryOp (Match, u, Literal (Regexp r)) ->
@@ -166,7 +167,7 @@ and codegen_expr = function
         let u' = codegen_expr u in
         ignore (codegen_lvalue_update u' l);
         u'
-    | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, LValue (Dollar (Literal (String "0"))), Literal (Regexp r)))
+    | Literal (Regexp r) -> codegen_expr (BinaryOp (Match, dollar_0, Literal (Regexp r)))
     | Literal l ->
         let v = lookup_constant l in
         build_load v "load_temp" builder
@@ -176,21 +177,21 @@ and codegen_missing_args = function
     | num -> (build_runtime_call "init" [||]) :: (codegen_missing_args (num - 1))
 
 and codegen_func_call fn ag =
-    let ag' = match (fn, ag) with
-        | ("srand", []) -> [brawn_null]
-        | ("length", []) -> [codegen_expr (LValue (Dollar (Literal (String "0"))))]
+    let (fn', ag') = match (fn, ag) with
+        | ("srand", []) -> (fn, [brawn_null])
+        | ("length", []) -> (fn, [brawn_null])
+        | ("gsub", [Literal (Regexp r); y; z])
+        | ("sub", [Literal (Regexp r); y; z]) -> (fn ^ "_regex", [build_load (lookup_constant (Regexp r)) "load_temp" builder; codegen_expr y; codegen_expr z])
+        | ("gsub", [Literal (Regexp r); y])
+        | ("sub", [Literal (Regexp r); y]) -> (fn ^ "_regex", [build_load (lookup_constant (Regexp r)) "load_temp" builder; codegen_expr y; brawn_null])
         | ("gsub", [x; y])
-        | ("sub", [x; y]) -> [codegen_expr x; codegen_expr y; codegen_expr (LValue (Dollar (Literal (String "0"))))]
+        | ("sub", [x; y]) -> (fn, [codegen_expr x; codegen_expr y; brawn_null])
         | ("split", [x; y])
-        | ("substr", [x; y]) -> [codegen_expr x; codegen_expr y; brawn_null]
-        | _ -> List.map codegen_expr ag
+        | ("substr", [x; y]) -> (fn, [codegen_expr x; codegen_expr y; brawn_null])
+        | ("split", [x; y; Literal (Regexp r)]) -> (fn ^ "_regex", [codegen_expr x; codegen_expr y; build_load (lookup_constant (Regexp r)) "load_temp" builder])
+        | ("match", [x; Literal (Regexp r)]) -> (fn ^ "_regex", [codegen_expr x;  build_load (lookup_constant (Regexp r)) "load_temp" builder])
+        | _ -> (fn, List.map codegen_expr ag)
     in
-    let fn' = match (fn, ag') with
-        | ("gsub", [x; _; _])
-        | ("match", [_; x])
-        | ("split", [_; _; x])
-        | ("sub", [x; _; _]) when type_of x = regex_type -> fn ^ "_regex"
-        | _ -> fn in
     if List.mem_assq fn builtin_functions && List.length ag' < List.assq fn builtin_functions
     then raise (CodeGenError "brawn: invalid number of argments for function.")
     else ();
@@ -358,7 +359,7 @@ and codegen_stmt eb cb = function
         let e' = codegen_expr (concat_array_index es) in
         let a' = codegen_lvalue_get (IdentVal a) in
         ignore (build_runtime_call "delete_array" [|a'; e'|])
-    | Print [] -> codegen_stmt eb cb (Print [LValue (Dollar (Literal (String "0")))])
+    | Print [] -> codegen_stmt eb cb (Print [dollar_0])
     | Print es ->
         let args = Array.of_list (List.map codegen_expr es) in
         let num = const_int (i32_type context) (List.length es) in
