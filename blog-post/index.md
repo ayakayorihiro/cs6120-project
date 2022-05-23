@@ -64,15 +64,26 @@ TK: merge this with the above?
 # Evaluation
 
 ## Correctness
-For a selection of `AWK` programs that we can support in `BRAWN`, we compare our output to that of the standard `AWK` implementation. We select a series of `AWK` programs, generally a little more complex than simple one-line commands, from benchmarks previously used by
+For a small selection of `AWK` programs that we can support in `BRAWN`, we compare our outputs to that of the standard `AWK` implementation. We select a series of `AWK` programs, generally a little more complex than simple one-line commands, from benchmarks previously used by
 * the `AWK`-like language [frawk](https://github.com/ezrosent/frawk)
 * a [user guide](https://www.math.utah.edu/docs/info/gawk_toc.html) for GNU `AWK`
-and convert them by hand into their equivalent `BRAWN` programs. The changes required are minor and are described above. The programs perform operations such as unique sorting, conversion from a date to the number of seconds since the beginning of the epoch, spotting duplicate uses of words, and counting the occurrences of words. We use `turnt` to compare the outputs of `AWK` and `BRAWN`.
+and convert them by hand into their equivalent `BRAWN` programs. The changes required are minor and are as described above. 
+
+The programs perform the following operations:
+| Name | Description |
+|------|-------------|
+| math | Compute means after grouping by the value of a column |
+| dupword | Detect consecutive uses of words in a text |
+| word-count | Report on the frequency of each word in a text |
+
+We use `turnt` to generate the outputs of `AWK`, and compare these with `BRAWN` outputs by eye.
 
 ## Benchmark
-For the same programs as above, we provide a brief benchmark against the GNU `AWK` implementation, `gawk`. 
+For the same programs as above, we provide a brief benchmark against the GNU `AWK` implementation. Because startup times are high, only longer-running programs offer any interesting data. In our case, that is `math.awk` versus `math.brawn`. We ran our benchmarsk on a MacBook Pro running MacOS 12. The `AWK` version was 5.1.1.
 
-TK
+
+TK: say more about which version, etc? 
+TK: nUmB3rS
 
 # References
 
@@ -80,5 +91,7 @@ TK
 2. An OCaml module for generating LLVM IR: https://llvm.moe/
 3. Menhir: http://gallium.inria.fr/~fpottier/menhir/
 4. The AWK specification: https://pubs.opengroup.org/onlinepubs/009604499/utilities/awk.html
-5. Benchmarks obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md and https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154
-TK: once the order of these is stable, cite these above
+5. Benchmarks `word-count` and `dupword` obtained from https://www.math.utah.edu/docs/info/gawk_toc.html#SEC154
+6. Benchmark `math` obtained from https://github.com/ezrosent/frawk/blob/master/info/performance.md#group-by-key
+
+TK: once the order of these citations is stable, cite these in the text above
