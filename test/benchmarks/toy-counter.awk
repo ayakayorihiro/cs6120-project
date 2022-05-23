@@ -1,6 +1,6 @@
 # ARGS: toy-counter-input.txt
-# I give this argument to make Turnt happy and then thrown it away. 
-# TODO explore optional arguments or similar in Turnt
+# Expects the file to have a number on the first line.
+# Counts from 0 to that number, inclusive.
 
 BEGIN {
 #initialize a counter

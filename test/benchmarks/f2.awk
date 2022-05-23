@@ -1,6 +1,7 @@
+# ARGS: tree_grm_est_head.csv
+
 # from https://github.com/ezrosent/frawk/blob/master/info/performance.md
-# This is presented as the less hardcore version.
-# See f3 for the more hardcore one.
+# This is presented as the less hardcore, non-parallel version.
 
 function min(x,y) { return x<y?x:y; }
 function max(x,y) { return x<y?y:x; }
@@ -11,6 +12,9 @@ NR > 1 {
     # f2 is numeric, f1 is a string
     f2=$5+0; f2Len = length($5);
     f1=$6; f1Len = length($6);
+    # sanity check
+    print "f1: " f1
+    print "f2: " f2
     if (NR==2) {
         min1=max1=f1;
         min2=max2=f2;
